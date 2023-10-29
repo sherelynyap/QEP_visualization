@@ -45,13 +45,13 @@ def destroy_explain_detail_widget():
 def on_hover(event):
     # Hover effect for button
     clr = event.widget.cget("background")
-    if( clr != "gray"):
+    if( clr != "#444444"):
         event.widget.config(bg="lightblue")  # Change background color on hover
 def on_leave(event):
     # Hover effect for button
     clr = event.widget.cget("background")
-    if( clr != "gray"):
-        event.widget.config(bg="SystemButtonFace")  # Restore original background color on leave
+    if( clr != "#444444"):
+        event.widget.config(bg="grey50")  # Restore original background color on leave
 
 def reset_window():
     # Reset window to original window
@@ -101,7 +101,7 @@ def click_accessed_dick_button(k, button):
     # Display the content of k disk accessed in the result_frame
 
     # Create toggle effect by setting button to gray colour
-    button.configure(bg='gray')
+    button.configure(bg='#444444')
 
 def add_accessed_disk_button(k):
     # Add a button, k to disk_accessed_frame, where k is the disk ID
@@ -110,7 +110,7 @@ def add_accessed_disk_button(k):
     global disk_accessed_canvas
 
     # Create Button
-    disk_button = tk.Button(inner_frame, text=f"Button {k}", padx=150, borderwidth=5, wraplength=150)
+    disk_button = tk.Button(inner_frame, text=f"Button {k}", padx=150, borderwidth=5, wraplength=150, bg = "grey50")
     disk_button.configure(command = lambda btn = disk_button:click_accessed_dick_button(k, btn))
 
     # Add hover effect on Button
@@ -125,7 +125,7 @@ def add_accessed_disk_button(k):
 def add_qep_aspect_button(qep_aspect):
     # Add a button, qep_aspect to qep_aspect_canvas_inner_frame
     global qep_aspect_canvas_inner_frame
-    qep_aspect_button = tk.Button(qep_aspect_canvas_inner_frame, text=f"Button {qep_aspect}", padx=100, wraplength=150)
+    qep_aspect_button = tk.Button(qep_aspect_canvas_inner_frame, text=f"Button {qep_aspect}", padx=100, wraplength=150, bg = "grey50")
     qep_aspect_button.configure(command = lambda btn = qep_aspect_button:click_qep_aspect_button(qep_aspect, btn))
 
     # Add hover effect on button
@@ -190,9 +190,9 @@ def config_frame1():
     global submit_button
 
     # Split frame1 into sql_input_label_frame to display "Enter your SQL Query"
-    sql_input_label_frame = tk.Frame(frame1, bg='red')
+    sql_input_label_frame = tk.Frame(frame1, bg='white')
     sql_input_label_frame.grid(row=0, column=0, sticky='nsew')
-    inputLabel = tk.Label(sql_input_label_frame, text='Enter your SQL Query:', font = label_font)
+    inputLabel = tk.Label(sql_input_label_frame, text='Enter your SQL Query:', font = label_font, bg = "white")
     inputLabel.pack(side = 'left')
     frame1.grid_rowconfigure(0, weight=1)
 
@@ -202,15 +202,15 @@ def config_frame1():
     frame1.grid_rowconfigure(1, weight=5)
 
     # Set sql_input_widget to get sql inputs inside sql_input_widget_frame
-    sql_input_widget = tk.Text(sql_input_widget_frame, wrap='word') 
+    sql_input_widget = tk.Text(sql_input_widget_frame, wrap='word', borderwidth=2, relief="groove") 
     sql_input_widget.place(relwidth=1, relheight=1) 
     sql_input_widget.pack_propagate(False)
 
     # Split frame1 into sql_input_button_frame to include "Run Query" Button
-    sql_input_button_frame = tk.Frame(frame1, bg='green')
+    sql_input_button_frame = tk.Frame(frame1, bg='white')
     sql_input_button_frame.grid(row=2, column=0, sticky='nsew')
     frame1.grid_rowconfigure(2, weight=1)
-    submit_button = tk.Button(frame1, text='Run Query', command=on_submit)
+    submit_button = tk.Button(frame1, text='Run Query', command=on_submit, bg = "grey50")
     submit_button.grid(row = 2, column = 0)
 
     # Add hover effect for submit_button
@@ -232,7 +232,7 @@ def display_qep_aspects_buttons():
     destroy_back_button()
     
     # Create qep_aspect_canvas to hold qep_aspect_buttons
-    qep_aspect_canvas = tk.Canvas(explain_frame, width=1, height=1, bg = 'red')
+    qep_aspect_canvas = tk.Canvas(explain_frame, width=1, height=1, bg = 'white')
     qep_aspect_canvas.pack(side='left', fill='both', expand=True)
 
     # Create a canvas with a vertical scrollbar
@@ -284,7 +284,7 @@ def display_qep_aspects_details(qep_aspect):
     explain_detail_widget.insert("1.0", TESTING)
 
     # Initialize a back_button to backtrack
-    back_button = tk.Button(explain_frame, text='Back', command=click_back_button)
+    back_button = tk.Button(explain_frame, text='Back', command=click_back_button, bg = "grey50")
     back_button.pack(side = "top")
 
     # Add hover effect on back_button
@@ -307,8 +307,8 @@ def config_explore_result_frame():
     explain_scrollbar = None
 
     # Set "QEP Aspects" in qep_aspect_label
-    qep_aspect_label = tk.Label(explain_frame, text='QEP Aspects', wraplength=90, font = label_font, height = 3)
-    qep_aspect_label.pack(side = "top")
+    qep_aspect_label = tk.Label(explain_frame, text='QEP Aspects', wraplength=90, font = label_font, height = 3, bg = "white", borderwidth=2, relief="groove")
+    qep_aspect_label.pack(side = "top", fill = "x")
 
 
 def display_disk_accessed_buttons():
@@ -322,7 +322,7 @@ def display_disk_accessed_buttons():
     global accessed_disk_buttons
 
     # Create disk_accessed_canvas to store the disk_accessed_buttons
-    disk_accessed_canvas = tk.Canvas(disk_accessed_frame, width=1, height=1, bg = 'blue')
+    disk_accessed_canvas = tk.Canvas(disk_accessed_frame, width=1, height=1, bg = 'white')
     disk_accessed_canvas.pack(side='left', fill='both', expand=True)
 
     # Create a canvas with a vertical scrollbar
@@ -354,8 +354,8 @@ def config_disk_accessed_frame():
     disk_accessed_scrollbar = None
     inner_frame = None
     disk_accessed_label = None
-    disk_accessed_label = tk.Label(disk_accessed_frame, text='Disk Accessed', font = label_font, height = 3)
-    disk_accessed_label.pack()
+    disk_accessed_label = tk.Label(disk_accessed_frame, text='Disk Accessed', font = label_font, height = 3, bg = "white", borderwidth=2, relief="groove")
+    disk_accessed_label.pack(fill = "x")
 
 
 def main():

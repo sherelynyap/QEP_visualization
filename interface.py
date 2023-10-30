@@ -169,7 +169,7 @@ def initialize_window():
     upper_frame = tk.Frame(root, relief="groove")
     upper_frame.pack( side = tk.TOP, fill = tk.BOTH, expand = True)
     schema_output_frame = tk.Frame(root, borderwidth=2, relief="groove")
-    schema_output_frame.pack( side = tk.TOP, fill = tk.BOTH, expand = True)
+    schema_output_frame.pack( side = tk.BOTTOM, fill = tk.BOTH, expand = True)
 
     # Split upper frame into frame1 for SQL inputs 
     # And frame2 for QEP aspects displays and dick accessed display
@@ -184,6 +184,7 @@ def initialize_window():
     explain_frame.pack( side = tk.LEFT, fill = tk.BOTH, expand = True, padx=0, pady=0)
     disk_accessed_frame = tk.Frame(frame2, borderwidth=2, relief="groove")
     disk_accessed_frame.pack( side = tk.LEFT, fill = tk.BOTH, expand = True)
+
 
 def config_frame1():
     global sql_input_widget
@@ -365,4 +366,5 @@ def main():
     config_disk_accessed_frame()
     root.mainloop()
 
-main()
+if __name__ == "__main__":
+    main()

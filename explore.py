@@ -26,19 +26,45 @@ def parse_sql(query):
 
 ######## Functions for retrieving by blocks and return disk block accessed #######
 
-# idea: parse sql, add cid, then exec, then return
-## how to split the returned result should be decided by interface side
-## to check: is the header passed in as well
+# Get the number of blocks accessed in each scan
+## Return the sorted list of ctid
+def retrieve_ctid(connection, table_name, scan_type, index_condition = None):
+    if (scan_type.startswith("Index")):
+        query = f"SELECT ctid, * FROM {table_name} WHERE {index_condition}"
+    else:
+        query = f"SELECT ctid, * FROM {table_name}"
 
-# idea: execute query WHERE cid = ... (id that passed in)
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchall
+
+    ctid_set = set()
+    for tuple in result:
+        ctid_set.add(tuple[0])
+
+    ctid_list = sorted(ctid_set)
+
+    return ctid_list
+
+# Fetch the block content based on ctid
+## Return the list of column name and list of result, in tuple
+def execute_block_query(connection, table_name, ctid):
+    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {ctid}"
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        schema = [desc[0] for desc in cursor.description]
+        result = cursor.fetchall()
+
+    return schema, result
+
 ######## End of Functions for retrieving by blocks and return disk block accessed #######
 
-######## Passing whole result related to QEP might be inefficient
-########### Can consider to make it as a menu, and I can make changes accordingly on my side if yall want
-########### Also can decide if yall want to add those explanation on my side or on interface side, i.e. transfer to Natural language
+#
 def get_qep_info(connection, query):
     with connection.cursor() as cursor:
-        cursor.execute(f"EXPLAIN ??? {query}")
+        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
         result = cursor.fetchall()[0][0][0]['Plan']
-
+    
+    #maybe get json, loop through, convert matched using dict, then return
     return result

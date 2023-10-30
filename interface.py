@@ -144,6 +144,10 @@ def initialize_window():
     global upper_frame
     global schema_output_frame
     global frame1
+    global username
+    global password
+    global username_input_label_frame
+    global password_input_label_frame
     global frame2
     global sql_input_label_frame
     global sql_input_widget_frame
@@ -159,14 +163,14 @@ def initialize_window():
     root = tk.Tk()
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    screen_width//=2
-    screen_height//=2
+    # screen_width//=2
+    # screen_height//=2
     root.geometry(f"{screen_width}x{screen_height}")
     root.title('Database System Principle Project 2')
 
     # Split root frame into upper_frame for SQL inputs, QEP aspects displays and disk accessed display
     # And schema_output_frame to output schema
-    upper_frame = tk.Frame(root, relief="groove")
+    upper_frame = tk.Frame(root, relief="groove", height = screen_height//2, width = screen_width)
     upper_frame.pack( side = tk.TOP, fill = tk.BOTH, expand = True)
     schema_output_frame = tk.Frame(root, borderwidth=2, relief="groove")
     schema_output_frame.pack( side = tk.BOTTOM, fill = tk.BOTH, expand = True)
@@ -185,22 +189,60 @@ def initialize_window():
     disk_accessed_frame = tk.Frame(frame2, borderwidth=2, relief="groove")
     disk_accessed_frame.pack( side = tk.LEFT, fill = tk.BOTH, expand = True)
 
+def on_entry_click(event):
+    if event.widget.get() == "Enter Password" or event.widget.get() == "Enter Username":
+        event.widget.delete(0, "end")
+        event.widget.config(fg="black")  # Change text color to black
+
+def on_entry_leave(event):
+    if not event.widget.get():
+        # parent_id = event.widget.winfo_parent()
+        # parent_frame = event.widget._nametowidget(parent_id)
+        # print("this is" + parent_frame.winfo_name())
+
+        if event.widget.winfo_name() == "username_text":
+            event.widget.insert(0, "Enter Username")
+        else:
+            event.widget.insert(0, "Enter Password")
+        event.widget.config(fg="grey")  # Change text color to grey
 
 def config_frame1():
     global sql_input_widget
     global submit_button
+    global username
+    global password
+    global username_input_label_frame
+    global password_input_label_frame
+
+    username_input_label_frame = tk.Frame(frame1, bg='white', borderwidth=2, relief="groove")
+    username_input_label_frame.grid(row=0, column=0, sticky='nsew')
+    username = tk.Entry(username_input_label_frame, fg="grey", name = "username_text")  # Set the text color to grey
+    username.insert(0, "Enter Username")  # Set the initial placeholder text
+    username.bind("<FocusIn>", on_entry_click)
+    username.bind("<FocusOut>", on_entry_leave)
+    username.pack(side = "top", fill = "both", expand = True)
+    #frame1.grid_rowconfigure(0, weight=1)
+
+    password_input_label_frame = tk.Frame(frame1, bg='white', borderwidth=2, relief="groove")
+    password_input_label_frame.grid(row=1, column=0, sticky='nsew')
+    password = tk.Entry(username_input_label_frame, fg="grey", name = "password_text")  # Set the text color to grey
+    password.insert(0, "Enter Password")  # Set the initial placeholder text
+    password.bind("<FocusIn>", on_entry_click)
+    password.bind("<FocusOut>", on_entry_leave)
+    password.pack(side = "top", fill = "both", expand = True)
+    #frame1.grid_rowconfigure(1, weight=1)
 
     # Split frame1 into sql_input_label_frame to display "Enter your SQL Query"
     sql_input_label_frame = tk.Frame(frame1, bg='white')
-    sql_input_label_frame.grid(row=0, column=0, sticky='nsew')
+    sql_input_label_frame.grid(row=2, column=0, sticky='nsew')
     inputLabel = tk.Label(sql_input_label_frame, text='Enter your SQL Query:', font = label_font, bg = "white")
     inputLabel.pack(side = 'left')
-    frame1.grid_rowconfigure(0, weight=1)
+    frame1.grid_rowconfigure(2, weight=1)
 
     # Split frame1 into sql_input_widget_frame to get sql inputs
     sql_input_widget_frame = tk.Frame(frame1, bg='blue')
-    sql_input_widget_frame.grid(row=1, column=0, sticky='nsew')
-    frame1.grid_rowconfigure(1, weight=5)
+    sql_input_widget_frame.grid(row=3, column=0, sticky='nsew')
+    frame1.grid_rowconfigure(3, weight=5)
 
     # Set sql_input_widget to get sql inputs inside sql_input_widget_frame
     sql_input_widget = tk.Text(sql_input_widget_frame, wrap='word', borderwidth=2, relief="groove") 
@@ -209,10 +251,10 @@ def config_frame1():
 
     # Split frame1 into sql_input_button_frame to include "Run Query" Button
     sql_input_button_frame = tk.Frame(frame1, bg='white')
-    sql_input_button_frame.grid(row=2, column=0, sticky='nsew')
-    frame1.grid_rowconfigure(2, weight=1)
+    sql_input_button_frame.grid(row=4, column=0, sticky='nsew')
+    frame1.grid_rowconfigure(4, weight=1)
     submit_button = tk.Button(frame1, text='Run Query', command=on_submit, bg = "grey50")
-    submit_button.grid(row = 2, column = 0)
+    submit_button.grid(row = 4, column = 0)
 
     # Add hover effect for submit_button
     submit_button.bind("<Enter>", on_hover)
@@ -343,7 +385,6 @@ def display_disk_accessed_buttons():
     # EDIT: Create and add buttons dynamically for diskID
     for i in range(1000):
         add_accessed_disk_button(i)
-
     
 
 def config_disk_accessed_frame():
@@ -364,6 +405,7 @@ def main():
     config_explore_result_frame()
     config_frame1()
     config_disk_accessed_frame()
+    
     root.mainloop()
 
 if __name__ == "__main__":

@@ -15,30 +15,11 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
 # Explanation for function
 def parse_sql(query):
     parsed = sqlparse.parse(query)
-
-    # Process the query here
-    # eg: parsed = parsed[0]
     return parsed
 
 # !!!!!!!!!!!!!!!
 # Error handling !!!
 # !!!!!!!!!!!!!!!
-
-######## Functions for retrieving by blocks and return disk block accessed #######
-
-# Fetch the block content based on ctid
-## Return the list of column name and list of result, in tuple
-def execute_block_query(connection, table_name, ctid):
-    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {ctid}"
-
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        schema = [desc[0] for desc in cursor.description]
-        result = cursor.fetchall()
-
-    return schema, result
-
-######## End of Functions for retrieving by blocks and return disk block accessed #######
 
 # Class representing QEP tree node
 class Node():
@@ -49,6 +30,8 @@ class Node():
 
 # Retrieve QEP from database
 def get_qep_info(connection, query):
+    result_dict = {}
+
     block_id_per_table = {}
 
     with connection.cursor() as cursor:
@@ -63,7 +46,13 @@ def get_qep_info(connection, query):
         cursor.execute(f"SHOW block_size")
         buffer_size = cursor.fetchall()[0][0]
 
-    return root, planning_time, execution_time, buffer_size, block_id_per_table
+    result_dict['root'] = root
+    result_dict['planning_time'] = planning_time
+    result_dict['execution_time'] = execution_time
+    result_dict['buffer_size'] = buffer_size
+    result_dict['block_id_per_table'] = block_id_per_table
+
+    return result_dict
 
 # Function to build QEP tree
 def build_tree(connection, plan, block_id_dict):
@@ -75,13 +64,13 @@ def build_tree(connection, plan, block_id_dict):
         if (plan["Node Type"] == "Index Only Scan"):
             block_id_dict[table_name] = []
         elif (plan["Node Type"] == "Seq Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Seq Scan")
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name)
         elif (plan["Node Type"] == "Index Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Index Scan", plan["Index Cond"])
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Index Cond"])
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Bitmap Heap Scan", plan["Recheck Cond"])
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Recheck Cond"])
         elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Tid Scan", plan["TID Cond"])
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["TID Cond"])
         
     for key, val in plan.items():
         if (key != "Plans"):
@@ -97,11 +86,11 @@ def build_tree(connection, plan, block_id_dict):
 
 # Get the number of blocks accessed in each scan
 ## Return the sorted list of ctid
-def retrieve_ctid(connection, table_name, scan_type, condition = None):
-    if (scan_type == "Seq Scan"):
-        query = f"SELECT ctid, * FROM {table_name}"
-    else:
+def retrieve_ctid(connection, table_name, condition = None):
+    if (condition):
         query = f"SELECT ctid, * FROM {table_name} WHERE {condition}"
+    else:
+        query = f"SELECT ctid, * FROM {table_name}"
 
     with connection.cursor() as cursor:
         cursor.execute(query)
@@ -114,6 +103,18 @@ def retrieve_ctid(connection, table_name, scan_type, condition = None):
     ctid_list = sorted(ctid_set)
 
     return ctid_list
+
+# Get the block content based on ctid
+## Return the attribute name and the rows
+def execute_block_query(connection, table_name, ctid):
+    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {ctid}"
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        schema = [desc[0] for desc in cursor.description]
+        result = cursor.fetchall()
+
+    return schema, result
 
 VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
 
@@ -130,5 +131,6 @@ NODE_EXPLANATION = {
     'Merge Join': 'Merges two record sets by first sorting them on a join key.',
     'Hash': 'Generates a hash table from the records in the input recordset.',
     'CTE_Scan': 'Performs sequential scan of a Common Table Expression (CTE) query results.',
-    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.'
+    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
+    'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.'
 }

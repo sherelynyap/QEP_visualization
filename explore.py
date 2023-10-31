@@ -58,6 +58,10 @@ def get_qep_info(connection, query):
 def build_tree(connection, plan, block_id_dict):
     root = Node()
     
+    ## If parallel aware, add Parallel to Node Type
+    ## Annotation here (perhaps)
+
+    ## Check if disk block access involved
     if (plan["Node Type"] in VALID_SCAN):
         table_name = plan["Relation Name"]
 
@@ -71,12 +75,13 @@ def build_tree(connection, plan, block_id_dict):
             block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Recheck Cond"])
         elif (plan["Node Type"] == "Tid Scan"):
             block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["TID Cond"])
-        
+    
+    ## Add elements in plan to attributes   
     for key, val in plan.items():
         if (key != "Plans"):
             root.attributes[key] = val
     
-    ### If not leaf node
+    ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:
         for child_plan in plan["Plans"]:
             child_node = build_tree(child_plan)

@@ -153,6 +153,7 @@ class ProjectWindow(tk.Tk):
 
 
     def display_relation(self, relation, ctid):
+        self.destroy_block_content_display()
         # Rerieve the schema and result based on relation and ctid
         schema, result = execute_block_query(None, relation, ctid)
 

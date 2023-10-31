@@ -26,28 +26,6 @@ def parse_sql(query):
 
 ######## Functions for retrieving by blocks and return disk block accessed #######
 
-# Get the number of blocks accessed in each scan
-## Return the sorted list of ctid
-def retrieve_ctid(connection, table_name, scan_type, index_condition = None):
-
-    ### bitmap index scan??
-    if (scan_type.startswith("Index")):
-        query = f"SELECT ctid, * FROM {table_name} WHERE {index_condition}"
-    else:
-        query = f"SELECT ctid, * FROM {table_name}"
-
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        result = cursor.fetchall
-
-    ctid_set = set()
-    for tuple in result:
-        ctid_set.add(tuple[0])
-
-    ctid_list = sorted(ctid_set)
-
-    return ctid_list
-
 # Fetch the block content based on ctid
 ## Return the list of column name and list of result, in tuple
 def execute_block_query(connection, table_name, ctid):
@@ -69,12 +47,44 @@ class Node():
         self.attributes = {}
         self.annotations = ""
 
+# Retrieve QEP from database
+def get_qep_info(connection, query):
+    block_id_per_table = {}
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
+        result = cursor.fetchall()[0][0][0]
+
+    root = build_tree(connection, result['Plan'], block_id_per_table)
+    planning_time = result['Planning Time']
+    execution_time = result['Execution Time']
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"SHOW block_size")
+        buffer_size = cursor.fetchall()[0][0]
+
+    return root, planning_time, execution_time, buffer_size, block_id_per_table
+
 # Function to build QEP tree
-def build_tree(plan):
+def build_tree(connection, plan, block_id_dict):
     root = Node()
     
+    if (plan["Node Type"] in VALID_SCAN):
+        table_name = plan["Relation Name"]
+
+        if (plan["Node Type"] == "Index Only Scan"):
+            block_id_dict[table_name] = []
+        elif (plan["Node Type"] == "Seq Scan"):
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Seq Scan")
+        elif (plan["Node Type"] == "Index Scan"):
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Index Scan", plan["Index Cond"])
+        elif (plan["Node Type"] == "Bitmap Heap Scan"):
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Bitmap Heap Scan", plan["Recheck Cond"])
+        elif (plan["Node Type"] == "Tid Scan"):
+            block_id_dict[table_name] = retrieve_ctid(connection, table_name, "Tid Scan", plan["TID Cond"])
+        
     for key, val in plan.items():
-        if key != "Plans":
+        if (key != "Plans"):
             root.attributes[key] = val
     
     ### If not leaf node
@@ -85,22 +95,27 @@ def build_tree(plan):
 
     return root
 
-# Retrieve QEP from database
-def get_qep_info(connection, query):
-    with connection.cursor() as cursor:
-        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
-        result = cursor.fetchall()[0][0][0]
-
-    root = build_tree(result['Plan'])
-    ### possibly scan leaf node here?
-    planning_time = result['Planning Time']
-    execution_time = result['Execution Time']
+# Get the number of blocks accessed in each scan
+## Return the sorted list of ctid
+def retrieve_ctid(connection, table_name, scan_type, condition = None):
+    if (scan_type == "Seq Scan"):
+        query = f"SELECT ctid, * FROM {table_name}"
+    else:
+        query = f"SELECT ctid, * FROM {table_name} WHERE {condition}"
 
     with connection.cursor() as cursor:
-        cursor.execute(f"SHOW block_size")
-        buffer_size = cursor.fetchall()[0][0]
+        cursor.execute(query)
+        result = cursor.fetchall()
 
-    return root, planning_time, execution_time, buffer_size
+    ctid_set = set()
+    for tuple in result:
+        ctid_set.add(tuple[0])
+
+    ctid_list = sorted(ctid_set)
+
+    return ctid_list
+
+VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
 
 NODE_EXPLANATION = {
     'Seq Scan': 'Scans the entire relation as stored on disk.',

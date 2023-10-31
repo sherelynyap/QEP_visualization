@@ -1,412 +1,337 @@
+from pathlib import Path
+from math import floor
+
+# from types import NoneType
+NoneType = type(None)
+
+from typing import Tuple, Union
+from preprocessing import *
+from annotation import *
+
+# from tkinter import *
+# Explicit imports to satisfy Flake8
 import tkinter as tk
-from tkinter import Scrollbar
-def destroy_disk_accessed_canvas():
-    global disk_accessed_canvas
-
-    # Remove disk_accessed_canvas that holds list of accessed dick buttons
-    if(disk_accessed_canvas is not None):
-        disk_accessed_canvas.destroy()
-        disk_accessed_canvas = None
-def destroy_disk_accessed_scrollbar():
-    global disk_accessed_scrollbar
-
-    # Remove scrollbar at the disk accessed frame
-    if(disk_accessed_scrollbar is not None):
-        disk_accessed_scrollbar.destroy()
-        disk_accessed_scrollbar = None
-def destroy_qep_aspect_canvas():
-    global qep_aspect_canvas
-
-    # Remove qep_aspect_canvas that holds list of qep feature buttons
-    if(qep_aspect_canvas is not None):
-        qep_aspect_canvas.destroy()
-        qep_aspect_canvas = None
-def destroy_explain_scrollbar():
-    global explain_scrollbar
-
-    # Remove scrollbar at the explain_frame
-    if(explain_scrollbar is not None):
-        explain_scrollbar.destroy()
-        explain_scrollbar = None
-def destroy_back_button():
-    global back_button
-
-    # Remove back_button
-    if(back_button is not None):
-        back_button.destroy()
-        back_button = None
-def destroy_explain_detail_widget():
-    global explain_detail_widget
-
-    # Remove explain_detail_widget textbox widget that provide details of QEP aspect
-    if(explain_detail_widget is not None):
-        explain_detail_widget.destroy()
-        explain_detail_widget = None
-def on_hover(event):
-    # Hover effect for button
-    clr = event.widget.cget("background")
-    if( clr != "#444444"):
-        event.widget.config(bg="lightblue")  # Change background color on hover
-def on_leave(event):
-    # Hover effect for button
-    clr = event.widget.cget("background")
-    if( clr != "#444444"):
-        event.widget.config(bg="grey50")  # Restore original background color on leave
-
-def reset_window():
-    # Reset window to original window
-    destroy_disk_accessed_canvas()
-    destroy_disk_accessed_scrollbar()
-    destroy_qep_aspect_canvas()
-    destroy_explain_scrollbar()
-    destroy_back_button()
-    
-def on_submit():
-    # Get the text from the Text widget
-    reset_window()
-    sql_input = sql_input_widget.get("1.0", "end-1c")  
-    print("sql_input = " + sql_input)
-    
-    # Pass the text to explore.py
-
-    # Get explain results
-    # Display explain results
-    display_qep_aspects_buttons()
-    
-    # Get accessed disk 
-    # Display dyamic buttons of accessed disk
-    display_disk_accessed_buttons()
-
-    # Get schema
-    # Display Schema on result_frame
-    
-
-def on_configure_qep_aspect_canvas(event):
-    global qep_aspect_canvas
-
-    # Update the canvas scroll region at qep_aspect_canvas to match the frame size
-    if(qep_aspect_canvas is not None and qep_aspect_canvas.bbox("all") is not None):
-        qep_aspect_canvas.configure(scrollregion=qep_aspect_canvas.bbox("all"))
-
-def on_configure_disk_accessed_canvas(event):
-    global disk_accessed_canvas
-
-    # Update the canvas scroll region at disk_accessed_canvas to match the frame size
-    if(disk_accessed_canvas is not None and disk_accessed_canvas.bbox("all") is not None):
-        disk_accessed_canvas.configure(scrollregion=disk_accessed_canvas.bbox("all"))
-
-
-def click_accessed_dick_button(k, button):
-    # Get the k disk accessed schema
-    # Display the content of k disk accessed in the result_frame
-
-    # Create toggle effect by setting button to gray colour
-    button.configure(bg='#444444')
-
-def add_accessed_disk_button(k):
-    # Add a button, k to disk_accessed_frame, where k is the disk ID
-    global inner_frame
-    global accessed_disk_buttons
-    global disk_accessed_canvas
-
-    # Create Button
-    disk_button = tk.Button(inner_frame, text=f"Button {k}", padx=150, borderwidth=5, wraplength=150, bg = "grey50")
-    disk_button.configure(command = lambda btn = disk_button:click_accessed_dick_button(k, btn))
-
-    # Add hover effect on Button
-    disk_button.bind("<Enter>", on_hover)
-    disk_button.bind("<Leave>", on_leave)
-    disk_button.pack(fill='x', expand = True)
-
-    # Adjust scrollbar
-    accessed_disk_buttons.append(disk_button)
-    disk_accessed_canvas.bind('<Configure>', on_configure_disk_accessed_canvas)
-
-def add_qep_aspect_button(qep_aspect):
-    # Add a button, qep_aspect to qep_aspect_canvas_inner_frame
-    global qep_aspect_canvas_inner_frame
-    qep_aspect_button = tk.Button(qep_aspect_canvas_inner_frame, text=f"Button {qep_aspect}", padx=100, wraplength=150, bg = "grey50")
-    qep_aspect_button.configure(command = lambda btn = qep_aspect_button:click_qep_aspect_button(qep_aspect, btn))
-
-    # Add hover effect on button
-    qep_aspect_button.bind("<Enter>", on_hover)
-    qep_aspect_button.bind("<Leave>", on_leave)
-    qep_aspect_button.pack(fill='x')
-
-    # Adjust scrollbar
-    qep_aspect_buttons.append(qep_aspect_button)
-    qep_aspect_canvas.bind('<Configure>', on_configure_qep_aspect_canvas)
-    
-
-def initialize_window():
-    # Instantiate global frames needed in the window
-    global root 
-    global upper_frame
-    global schema_output_frame
-    global frame1
-    global username
-    global password
-    global username_input_label_frame
-    global password_input_label_frame
-    global frame2
-    global sql_input_label_frame
-    global sql_input_widget_frame
-    global sql_input_button_frame
-    global explain_frame
-    global disk_accessed_frame
-    global label_font 
-    label_font= ("Helvetica", 14, "bold")
-    global button_font
-    button_font = ("Arial", 10)
-    
-    # Initialize root frame
-    root = tk.Tk()
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    # screen_width//=2
-    # screen_height//=2
-    root.geometry(f"{screen_width}x{screen_height}")
-    root.title('Database System Principle Project 2')
-
-    # Split root frame into upper_frame for SQL inputs, QEP aspects displays and disk accessed display
-    # And schema_output_frame to output schema
-    upper_frame = tk.Frame(root, relief="groove", height = screen_height//2, width = screen_width)
-    upper_frame.pack( side = tk.TOP, fill = tk.BOTH, expand = True)
-    schema_output_frame = tk.Frame(root, borderwidth=2, relief="groove")
-    schema_output_frame.pack( side = tk.BOTTOM, fill = tk.BOTH, expand = True)
-
-    # Split upper frame into frame1 for SQL inputs 
-    # And frame2 for QEP aspects displays and dick accessed display
-    frame1 = tk.Frame(upper_frame, borderwidth=2, relief="groove", bg='gray')
-    frame1.pack( side = tk.LEFT, fill = tk.BOTH, expand = True, padx=0, pady=0)
-    frame2 = tk.Frame(upper_frame, relief="groove")
-    frame2.pack( side = tk.LEFT, fill = tk.BOTH, expand = True)
-
-    # Split frame2 into explain_frame for QEP aspects display
-    # And disk_accessed_frame for disk accessed display
-    explain_frame = tk.Frame(frame2, borderwidth=2, relief="groove")
-    explain_frame.pack( side = tk.LEFT, fill = tk.BOTH, expand = True, padx=0, pady=0)
-    disk_accessed_frame = tk.Frame(frame2, borderwidth=2, relief="groove")
-    disk_accessed_frame.pack( side = tk.LEFT, fill = tk.BOTH, expand = True)
-
-def on_entry_click(event):
-    if event.widget.get() == "Enter Password" or event.widget.get() == "Enter Username":
-        event.widget.delete(0, "end")
-        event.widget.config(fg="black")  # Change text color to black
-
-def on_entry_leave(event):
-    if not event.widget.get():
-        # parent_id = event.widget.winfo_parent()
-        # parent_frame = event.widget._nametowidget(parent_id)
-        # print("this is" + parent_frame.winfo_name())
-
-        if event.widget.winfo_name() == "username_text":
-            event.widget.insert(0, "Enter Username")
-        else:
-            event.widget.insert(0, "Enter Password")
-        event.widget.config(fg="grey")  # Change text color to grey
-
-def config_frame1():
-    global sql_input_widget
-    global submit_button
-    global username
-    global password
-    global username_input_label_frame
-    global password_input_label_frame
-
-    username_input_label_frame = tk.Frame(frame1, bg='white', borderwidth=2, relief="groove")
-    username_input_label_frame.grid(row=0, column=0, sticky='nsew')
-    username = tk.Entry(username_input_label_frame, fg="grey", name = "username_text")  # Set the text color to grey
-    username.insert(0, "Enter Username")  # Set the initial placeholder text
-    username.bind("<FocusIn>", on_entry_click)
-    username.bind("<FocusOut>", on_entry_leave)
-    username.pack(side = "top", fill = "both", expand = True)
-    #frame1.grid_rowconfigure(0, weight=1)
-
-    password_input_label_frame = tk.Frame(frame1, bg='white', borderwidth=2, relief="groove")
-    password_input_label_frame.grid(row=1, column=0, sticky='nsew')
-    password = tk.Entry(username_input_label_frame, fg="grey", name = "password_text")  # Set the text color to grey
-    password.insert(0, "Enter Password")  # Set the initial placeholder text
-    password.bind("<FocusIn>", on_entry_click)
-    password.bind("<FocusOut>", on_entry_leave)
-    password.pack(side = "top", fill = "both", expand = True)
-    #frame1.grid_rowconfigure(1, weight=1)
-
-    # Split frame1 into sql_input_label_frame to display "Enter your SQL Query"
-    sql_input_label_frame = tk.Frame(frame1, bg='white')
-    sql_input_label_frame.grid(row=2, column=0, sticky='nsew')
-    inputLabel = tk.Label(sql_input_label_frame, text='Enter your SQL Query:', font = label_font, bg = "white")
-    inputLabel.pack(side = 'left')
-    frame1.grid_rowconfigure(2, weight=1)
-
-    # Split frame1 into sql_input_widget_frame to get sql inputs
-    sql_input_widget_frame = tk.Frame(frame1, bg='blue')
-    sql_input_widget_frame.grid(row=3, column=0, sticky='nsew')
-    frame1.grid_rowconfigure(3, weight=5)
-
-    # Set sql_input_widget to get sql inputs inside sql_input_widget_frame
-    sql_input_widget = tk.Text(sql_input_widget_frame, wrap='word', borderwidth=2, relief="groove") 
-    sql_input_widget.place(relwidth=1, relheight=1) 
-    sql_input_widget.pack_propagate(False)
-
-    # Split frame1 into sql_input_button_frame to include "Run Query" Button
-    sql_input_button_frame = tk.Frame(frame1, bg='white')
-    sql_input_button_frame.grid(row=4, column=0, sticky='nsew')
-    frame1.grid_rowconfigure(4, weight=1)
-    submit_button = tk.Button(frame1, text='Run Query', command=on_submit, bg = "grey50")
-    submit_button.grid(row = 4, column = 0)
-
-    # Add hover effect for submit_button
-    submit_button.bind("<Enter>", on_hover)
-    submit_button.bind("<Leave>", on_leave)
-    frame1.grid_columnconfigure(0, weight=1)
-
-def display_qep_aspects_buttons():
-    qep_aspect_label.config(text = "QEP Aspects", font = label_font)
-    global qep_aspect_canvas
-    global explain_scrollbar 
-    explain_scrollbar = None
-    global qep_aspect_canvas_inner_frame
-    global qep_aspect_buttons
-    global explain_detail_widget
-
-    # Clear space in explain_frame
-    destroy_explain_detail_widget()
-    destroy_back_button()
-    
-    # Create qep_aspect_canvas to hold qep_aspect_buttons
-    qep_aspect_canvas = tk.Canvas(explain_frame, width=1, height=1, bg = 'white')
-    qep_aspect_canvas.pack(side='left', fill='both', expand=True)
-
-    # Create a canvas with a vertical scrollbar
-    explain_scrollbar = tk.Scrollbar(explain_frame, orient='vertical', command=qep_aspect_canvas.yview)
-    explain_scrollbar.pack(side='right', fill='y')
-    qep_aspect_canvas.configure(yscrollcommand=explain_scrollbar.set)
-    qep_aspect_canvas.bind('<Configure>', on_configure_qep_aspect_canvas)
-
-    # Create an inner frame to hold the buttons within the canvas
-    qep_aspect_canvas_inner_frame = tk.Frame(qep_aspect_canvas)
-    qep_aspect_canvas.create_window((0, 0), window=qep_aspect_canvas_inner_frame, anchor='nw')
-
-    qep_aspect_buttons = []
-
-    # EDIT: Get the qep_aspects to be made into buttons
-    qep_aspects =["Cost", "Time", "Number of Disk Accessed", "HAHAHAHAHHAHAHAHHAHAHAHHAHAHHAHAHHAHHAHAHHHAHAHAHHA"]
-    for aspect in qep_aspects:
-        add_qep_aspect_button(aspect)
-
-def click_qep_aspect_button(qep_aspect, btn):
-    global qep_aspect_canvas
-    global qep_aspect_canvas_inner_frame
-    global explain_scrollbar
-    global back_button
-
-    # Clear space at explain_frame
-    destroy_qep_aspect_canvas()
-    destroy_explain_scrollbar()
-
-    # Display the details of qep_espects
-    display_qep_aspects_details(qep_aspect)
-
-
-def display_qep_aspects_details(qep_aspect):
-    global qep_aspect_label
-    global explain_detail_widget
-    global explain_frame
-    global back_button
-
-    # Update the qep_aspect_label
-    qep_aspect_label.config(text = "Details of : " + qep_aspect, height = 3, font = button_font)
-    
-    TESTING = ""
-    # Add a explain_detail_widget textbox widget to output the explanations
-    explain_detail_widget = tk.Text(explain_frame, width=1, height=1, wrap=tk.WORD)
-    explain_detail_widget.pack(expand = True, fill = "both", side = 'top')
-
-    # Edit: Set explain_result_text
-    explain_detail_widget.insert("1.0", TESTING)
-
-    # Initialize a back_button to backtrack
-    back_button = tk.Button(explain_frame, text='Back', command=click_back_button, bg = "grey50")
-    back_button.pack(side = "top")
-
-    # Add hover effect on back_button
-    back_button.bind("<Enter>", on_hover)
-    back_button.bind("<Leave>", on_leave)
-
-def click_back_button():
-    # Back tracks
-    display_qep_aspects_buttons()
-
-def config_explore_result_frame():
-    global qep_aspect_label
-    global qep_aspect_canvas
-    qep_aspect_canvas = None
-    global explain_detail_widget
-    explain_detail_widget = None
-    global back_button
-    back_button = None
-    global explain_scrollbar 
-    explain_scrollbar = None
-
-    # Set "QEP Aspects" in qep_aspect_label
-    qep_aspect_label = tk.Label(explain_frame, text='QEP Aspects', wraplength=90, font = label_font, height = 3, bg = "white", borderwidth=2, relief="groove")
-    qep_aspect_label.pack(side = "top", fill = "x")
-
-
-def display_disk_accessed_buttons():
-    global disk_accessed_label
-    disk_accessed_label.config(text = "Disk Accessed")
-    global disk_accessed_canvas
-    disk_accessed_canvas = None
-    global disk_accessed_scrollbar 
-    disk_accessed_scrollbar = None
-    global inner_frame
-    global accessed_disk_buttons
-
-    # Create disk_accessed_canvas to store the disk_accessed_buttons
-    disk_accessed_canvas = tk.Canvas(disk_accessed_frame, width=1, height=1, bg = 'white')
-    disk_accessed_canvas.pack(side='left', fill='both', expand=True)
-
-    # Create a canvas with a vertical scrollbar
-    disk_accessed_scrollbar = tk.Scrollbar(disk_accessed_frame, orient='vertical', command=disk_accessed_canvas.yview)
-    disk_accessed_scrollbar.pack(side='right', fill='y')
-    disk_accessed_canvas.configure(yscrollcommand=disk_accessed_scrollbar.set)
-    disk_accessed_canvas.bind('<Configure>', on_configure_disk_accessed_canvas)
-
-    # Create an inner frame to hold the disk_accessed_buttons within the canvas
-    inner_frame = tk.Frame(disk_accessed_canvas, width = 1, height = 1)
-    inner_frame.pack(fill="both", expand=True)
-    disk_accessed_canvas.create_window((0, 0), window=inner_frame, anchor='nw')
-    
-    
-    accessed_disk_buttons = []
-
-    # EDIT: Create and add buttons dynamically for diskID
-    for i in range(1000):
-        add_accessed_disk_button(i)
-    
-
-def config_disk_accessed_frame():
-    global disk_accessed_canvas
-    global disk_accessed_scrollbar
-    global inner_frame
-    global disk_accessed_label
-    disk_accessed_canvas = None
-    disk_accessed_scrollbar = None
-    inner_frame = None
-    disk_accessed_label = None
-    disk_accessed_label = tk.Label(disk_accessed_frame, text='Disk Accessed', font = label_font, height = 3, bg = "white", borderwidth=2, relief="groove")
-    disk_accessed_label.pack(fill = "x")
-
-
-def main():
-    initialize_window()
-    config_explore_result_frame()
-    config_frame1()
-    config_disk_accessed_frame()
-    
-    root.mainloop()
+from tkinter import font
+from tkinter import messagebox
+
+
+# from tkinter.ttk import *
+
+# Functions for the appication
+
+def countLeafNodes(node: PlanNode):
+	leafNodesNum = 0
+	queue = [node]
+	while (len(queue) > 0):
+		curNode = queue.pop()
+		if (len(curNode.children) > 0):
+			for node in curNode.children:
+				queue.append(node)
+		else:
+			leafNodesNum += 1
+	return leafNodesNum
+
+
+class DisplayNode():
+	def __init__(self) -> None:
+		self.children: list[DisplayNode] = []
+		self.text = ""
+		self.annotations = ""
+		self.depth: int = 0
+		self.left_bound: int = 0
+		self.right_bound: int = 0
+
+
+def createDisplayNode(root: PlanNode):
+	maxBound = countLeafNodes(root)
+	rootDisplay = DisplayNode()
+	rootDisplay.left_bound = 0
+	rootDisplay.right_bound = maxBound
+	rootDisplay.text = root.attributes['Node Type']
+	rootDisplay.annotations = root.annotations
+	nodeQueue: list[Tuple[DisplayNode, PlanNode, Tuple[int, int]]] = []  # tuple of (displayNode parent, node child)
+	if (len(root.children) == 1):
+		nodeQueue.append((rootDisplay, root.children[0], (0, maxBound)))
+	elif (len(root.children) == 2):
+		nodeQueue.append((rootDisplay, root.children[0], (0, countLeafNodes(root.children[0]))))
+		nodeQueue.append((rootDisplay, root.children[1], (countLeafNodes(root.children[0]), maxBound)))
+	while (len(nodeQueue) > 0):
+		curNode = nodeQueue.pop(0)
+		newChild = DisplayNode()
+		newChild.left_bound = curNode[2][0]
+		newChild.right_bound = curNode[2][1]
+		newChild.text = curNode[1].attributes['Node Type']
+		newChild.annotations = curNode[1].annotations
+		newChild.depth = curNode[0].depth + 1
+		# append to parent
+		curNode[0].children.append(newChild)
+		if (len(curNode[1].children) == 1):
+			nodeQueue.append((newChild, curNode[1].children[0], (newChild.left_bound, newChild.right_bound)))
+		elif (len(curNode[1].children) == 2):
+			nodeQueue.append((newChild, curNode[1].children[0],
+							  (newChild.left_bound, newChild.left_bound + countLeafNodes(curNode[1].children[0]))))
+			nodeQueue.append((newChild, curNode[1].children[1],
+							  (newChild.left_bound + countLeafNodes(curNode[1].children[0]), newChild.right_bound)))
+	return rootDisplay
+
+
+class projectWindow(tk.Tk):
+	def createLoginDetails(self):
+		# Labelling frames
+		ipFrame = tk.Frame(self.sqlLabelFrame)
+		ipFrame.pack(anchor=tk.W)
+		portFrame = tk.Frame(self.sqlLabelFrame)
+		portFrame.pack(anchor=tk.W)
+		dbNameFrame = tk.Frame(self.sqlLabelFrame)
+		dbNameFrame.pack(anchor=tk.W)
+		userFrame = tk.Frame(self.sqlLabelFrame)
+		userFrame.pack(anchor=tk.W)
+		pwdFrame = tk.Frame(self.sqlLabelFrame)
+		pwdFrame.pack(anchor=tk.W)
+
+		# Auto filling certain labels
+		ipLabel = tk.Label(ipFrame, text="IP address: ")
+		ipLabel.pack(side=tk.LEFT)
+		self.ipEntry = tk.Entry(ipFrame)
+		self.ipEntry.insert(0, "127.0.0.1")
+		self.ipEntry.pack(side=tk.RIGHT)
+
+		portLabel = tk.Label(portFrame, text="Port: ")
+		portLabel.pack(side=tk.LEFT)
+		self.portEntry = tk.Entry(portFrame)
+		self.portEntry.insert(0, "5432")
+		self.portEntry.pack(side=tk.RIGHT)
+
+		userLabel = tk.Label(userFrame, text="Username: ")
+		userLabel.pack(side=tk.LEFT)
+		self.userEntry = tk.Entry(userFrame)
+		self.userEntry.insert(0, "postgres")
+		self.userEntry.pack(side=tk.RIGHT)
+
+		pwdLabel = tk.Label(pwdFrame, text="Password: ")
+		pwdLabel.pack(side=tk.LEFT)
+		self.pwdEntry = tk.Entry(pwdFrame)
+		self.pwdEntry.pack(side=tk.RIGHT)
+
+		dbNameLabel = tk.Label(dbNameFrame, text="Database name: ")
+		dbNameLabel.pack(side=tk.LEFT)
+		self.dbNameEntry = tk.Entry(dbNameFrame)
+		self.dbNameEntry.insert(0, "TPC-H")
+		self.dbNameEntry.pack(side=tk.RIGHT)
+		
+		loginBtn = tk.Button(self.sqlLabelFrame, text="LOGIN", command=self.processLogin)
+		loginBtn.pack()
+
+	def scroll_move(self, event):
+		self.planCanvas.scan_dragto(event.x, event.y, gain=1)
+
+	def scroll_start(self, event):
+		self.planCanvas.scan_mark(event.x, event.y)
+
+	def onObjectClick(self, event):
+		x = event.widget.canvasx(event.x)
+		y = event.widget.canvasy(event.y)
+		self.annoStr.set(self.dictExtraToID[event.widget.find_closest(x, y)[0]])
+		if (self.dictExtraToID[event.widget.find_closest(x, y)[0]] != ""):
+			self.open_popup(self.dictExtraToID[event.widget.find_closest(x, y)[0]])
+
+	# self.annoStr.set(self.dictExtraToID[event.widget.find_closest(event.x, event.y)[0]])
+	# if(self.dictExtraToID[event.widget.find_closest(event.x, event.y)[0]] != ""):
+	#     self.open_popup(self.dictExtraToID[event.widget.find_closest(event.x, event.y)[0]])
+
+	def createTextRectangle(self, text: str, canvas: tk.Canvas, x0: int, y0: int):
+		rectangle = canvas.create_rectangle(x0, y0, x0 + 100, y0 + 50, fill="#FFFFFF")
+		textline = canvas.create_text(x0 + 50, y0 + 25, text=text, justify='center')
+		self.textBoxes.append(textline)
+		self.planCanvas.tag_bind(rectangle, '<ButtonPress-1>', self.onObjectClick)
+		self.planCanvas.tag_bind(textline, '<ButtonPress-1>', self.onObjectClick)
+		return (rectangle, textline)
+
+	def open_popup(self, text: str):
+		top = tk.Toplevel(self)
+		top.title("Annotation")
+		lbl = tk.Label(top, text=text, font=('Arial', 12, ''), wraplength=300)
+		lbl.pack()
+		btn = tk.Button(top, text="Close", command=top.destroy)
+		btn.pack()
+
+	def drawCanvasPlan(self, root: PlanNode):
+		self.planCanvas.delete("all")
+		self.dictExtraToID = {}
+		self.scale = 0
+		self.textBoxes = []
+
+		rootD = createDisplayNode(root)
+
+		drawQueue: list[Tuple[DisplayNode, Union[DisplayNode, NoneType]]] = [(rootD, None)]
+		while (len(drawQueue) > 0):
+			curTup = drawQueue.pop(0)
+			curNode = curTup[0]
+			for child in curNode.children:
+				drawQueue.append((child, curNode))
+			x = (curNode.left_bound * 200 + curNode.right_bound * 200) / 2 - 50
+			y = curNode.depth * 100 + 50 - 25
+			(rect, line) = self.createTextRectangle(curNode.text, self.planCanvas, x, y)
+			self.dictExtraToID[rect] = curNode.annotations
+			self.dictExtraToID[line] = curNode.annotations
+			if (curTup[1] != None):
+				self.planCanvas.create_line((curNode.left_bound * 200 + curNode.right_bound * 200) / 2,
+											curNode.depth * 100 + 50 - 25,
+											(curTup[1].left_bound * 200 + curTup[1].right_bound * 200) / 2,
+											(curNode.depth - 1) * 100 + 50 + 25)
+
+	def processQuery(self):
+		# with open('query3.txt', 'r') as file:
+		#     data = file.read().replace('\n', ' ')
+		# query = data
+
+		# Check if user logged in correctly
+
+		if not self.connect.verify:
+			messagebox.showerror(
+				title="Warning", message="User is not Logged In. Try Again")
+			return
+
+		# User logged in correctly
+		print("query entered: ", self.queryTextBox.get(1.0, "end-1c"))
+		self.connect.getAllQueryPlans(self.queryTextBox.get(1.0, "end-1c"))
+
+		# SQL Statement is wrong
+		if (self.connect.queryError):
+			print("Please check your sql statements")
+			messagebox.showerror(
+				title="Warning", message="Please check your sql statement entered.")
+			return
+
+		# Clear query
+		self.queryTextBox.delete(1.0, "end")
+
+		print(self.connect.query_plans['chosen_plan'][1].print_tree())
+
+		annotation = Annotation()
+		annotation.traverseTree(self.connect.query_plans['chosen_plan'][1])
+
+		# Draw optimal query tree
+		self.drawCanvasPlan(self.connect.query_plans['chosen_plan'][1])
+
+	def processLogin(self):
+		# Checking if entry labels are empty in case user did not enter
+		typesOfEntry = []
+		typesOfEntry.extend([self.ipEntry, self.portEntry,
+							 self.userEntry, self.pwdEntry, self.dbNameEntry])
+		isEmpty = False
+		for i in typesOfEntry:
+			if len(i.get()) == 0:
+				isEmpty = True
+		if isEmpty:
+			messagebox.showerror(
+				title="Warning", message="Please fill All Empty Fields")
+			return
+
+		# Establishing connection
+		self.connect = SetUp(self.ipEntry.get(), self.portEntry.get(), self.dbNameEntry.get(), self.userEntry.get(),
+							 self.pwdEntry.get())
+
+		# Checking if login credentials are correct
+
+		if not self.connect.verify:
+			messagebox.showerror(
+				title="Warning", message="User is not Logged In. Credentials are wrong. Try Again")
+			return
+
+		messagebox.showinfo(
+			title="Success", message="User is logged in!!")
+
+		# query = "SELECT * FROM customer"
+
+		# print("-------------------Best plan operator tree--------------")
+		# print(self.connect.query_plans['chosen_plan'][1].print_tree())
+		print("IP:", self.ipEntry.get())
+		print("PORT:", self.portEntry.get())
+		print("USER:", self.userEntry.get())
+		print("PWD:", self.pwdEntry.get())
+		print("DB NAME:", self.dbNameEntry.get())
+
+	def centreCanvas(self):
+		self.planCanvas.scale("all", 0, 0, pow(0.8, self.scale), pow(0.8, self.scale))
+		self.planCanvas.xview_moveto(0.5)
+		self.planCanvas.yview_moveto(0)
+		writingFont = font.nametofont("TkDefaultFont").copy()
+		for text in self.textBoxes:
+			self.planCanvas.itemconfig(text, font=writingFont)
+
+		self.scale = 0
+
+	def zoomIn(self):
+		self.scale += 1
+		self.planCanvas.scale("all", 0, 0, 1.25, 1.25)
+		writingFont = font.nametofont("TkDefaultFont").copy()
+		writingFont.config(size=floor(writingFont.cget("size") * pow(1.1, self.scale)))
+		for text in self.textBoxes:
+			self.planCanvas.itemconfig(text, font=writingFont)
+
+	def zoomOut(self):
+		self.scale -= 1
+		self.planCanvas.scale("all", 0, 0, 0.8, 0.8)
+		writingFont = font.nametofont("TkDefaultFont").copy()
+		writingFont.config(size=floor(writingFont.cget("size") * pow(1.1, self.scale)))
+		for text in self.textBoxes:
+			self.planCanvas.itemconfig(text, font=writingFont)
+
+	def __init__(self):
+		super().__init__()
+		self.scale = 0
+		self.dictExtraToID = {}
+		self.textBoxes = []
+		self.title("CZ4031 Database Project 2")
+
+		inputFrame = tk.Frame(self, borderwidth=10)
+		inputFrame.pack(side=tk.LEFT)
+
+		planFrame = tk.Frame(self)
+		planFrame.pack(side=tk.RIGHT)
+
+		planInfoFrame = tk.Frame(planFrame)
+		planInfoFrame.pack()
+		planLabel = tk.Label(planInfoFrame, text="Query:")
+		planLabel.pack(side=tk.LEFT)
+		centreBtn = tk.Button(planInfoFrame, text="RESET VIEW", command=self.centreCanvas)
+		centreBtn.pack(side=tk.RIGHT)
+		zoomFrame = tk.Frame(planFrame)
+		zoomFrame.pack()
+
+		zoomInBtn = tk.Button(zoomFrame, text="Zoom In", command=self.zoomIn)
+		zoomInBtn.pack(side=tk.LEFT)
+		zoomOutBtn = tk.Button(zoomFrame, text="Zoom Out", command=self.zoomOut)
+		zoomOutBtn.pack(side=tk.RIGHT)
+
+		self.planCanvas = tk.Canvas(planFrame, height=600, width=600, bg="#FFFFFF")
+		self.planCanvas.pack()
+
+		self.planCanvas.bind("<ButtonPress-1>", self.scroll_start)
+		self.planCanvas.bind("<B1-Motion>", self.scroll_move)
+
+		self.sqlLabelFrame = tk.LabelFrame(inputFrame, text="PostgreSQL login")
+		self.sqlLabelFrame.pack(fill="both", expand="yes")
+
+		self.createLoginDetails()
+
+		queryLabel = tk.Label(inputFrame, text="Query:")
+		queryLabel.pack(anchor=tk.W)
+
+		self.queryTextBox = tk.Text(inputFrame, height=10, width=30)
+		self.queryTextBox.pack()
+
+		processBtn = tk.Button(inputFrame, text="Process query", command=self.processQuery)
+		processBtn.pack()
+
+		# annoLabel = tk.Label(inputFrame, text="Annotation:")
+		# annoLabel.pack()
+		self.annoStr = tk.StringVar()
+		# annoMsg = tk.Label(inputFrame, textvariable=self.annoStr, wraplength=150)
+		# annoMsg.pack()
+		self.resizable(False, False)
 
 if __name__ == "__main__":
-    main()
+    app = projectWindow()
+    app.mainloop()

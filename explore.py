@@ -102,12 +102,12 @@ def annotate_node(plan):
     if (plan["Node Type"] in NODE_EXPLANATION):
         annotations += NODE_EXPLANATION[plan["Node Type"]] + "\n"
     else:
-        annotations += "Performs " + plan["Node Type"] + ".\n"
+        annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n"
  
-    ## Explanation for join cond
-    ## Explanation for buffer
+    ## Explanation for join cond, join type
+    ## Explanation for buffer ==> how many saved   
     ## Explanation for cost (est, actual, error); actual vs est ==> err
-    ## Explanation for rows returned
+    ## Explanation for rows returned (only actual), how many removed by filter
                 
     return annotations
 
@@ -146,6 +146,8 @@ def execute_block_query(connection, table_name, block_id):
     return schema, result
 
 VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
+
+VALID_SCAN_CONDITION = {}
 
 NODE_EXPLANATION = {
     'Seq Scan': 'Scans the entire relation as stored on disk.',

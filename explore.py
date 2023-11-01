@@ -52,6 +52,9 @@ def get_qep_info(connection, query):
         cursor.execute(f"SHOW block_size")
         buffer_size = cursor.fetchall()[0][0]
 
+    for key in block_id_per_table:
+        block_id_per_table[key] = sorted(block_id_per_table[key])
+
     result_dict['root'] = root
     result_dict['planning_time'] = planning_time
     result_dict['execution_time'] = execution_time
@@ -65,19 +68,24 @@ def build_tree(connection, plan, block_id_dict):
     root = Node()
 
     ## Check if disk block access involved
+    ## Support scanning same table for multiple times
     if (plan["Node Type"] in VALID_SCAN):
         table_name = plan["Relation Name"]
+        
+        if (table_name not in block_id_dict):
+            block_id_dict[table_name] = set()
 
         if (plan["Node Type"] == "Index Only Scan"):
-            block_id_dict[table_name] = []
+            pass
         elif (plan["Node Type"] == "Seq Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name)
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Index Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None)
+            ## need to do this? ==> check nl join, only inner
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None))
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None)
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None))
         elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None)
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None))
     
     ## Annotation here
     root.annotations = annotate_node(plan)
@@ -135,9 +143,7 @@ def retrieve_block_id(connection, table_name, condition = None):
         block_id = ctid[0]
         block_id_set.add(block_id)
 
-    block_id_list = sorted(block_id_set)
-
-    return block_id_list
+    return block_id_set
 
 # Get the block content based on block id
 ## Return the attribute name and the rows

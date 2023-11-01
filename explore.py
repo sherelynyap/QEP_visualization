@@ -58,9 +58,6 @@ def get_qep_info(connection, query):
 # Function to build QEP tree
 def build_tree(connection, plan, block_id_dict):
     root = Node()
-    
-    ## If parallel aware, add Parallel to Node Type
-    ## Annotation here (perhaps)
 
     ## Check if disk block access involved
     if (plan["Node Type"] in VALID_SCAN):
@@ -69,14 +66,21 @@ def build_tree(connection, plan, block_id_dict):
         if (plan["Node Type"] == "Index Only Scan"):
             block_id_dict[table_name] = []
         elif (plan["Node Type"] == "Seq Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name)
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name)
         elif (plan["Node Type"] == "Index Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Index Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Index Cond"])
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Recheck Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Recheck Cond"])
         elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["TID Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"])
     
+    ## Annotation here (perhaps)
+    root.annotations = annotate_node(plan)
+
+    ## If parallel aware, append Parallel to the front of Node Type
+    if (plan["Parallel Aware"]):
+        plan["Node Type"] = "Parallel " + plan["Node Type"]
+
     ## Add elements in plan to attributes   
     for key, val in plan.items():
         if (key != "Plans"):
@@ -90,9 +94,13 @@ def build_tree(connection, plan, block_id_dict):
 
     return root
 
+# Function to annotate node
+def annotate_node(plan):
+    return ""
+
 # Get the number of blocks accessed in each scan
-## Return the sorted list of ctid
-def retrieve_ctid(connection, table_name, condition = None):
+## Return the sorted list of block id
+def retrieve_block_id(connection, table_name, condition = None):
     if (condition):
         query = f"SELECT ctid, * FROM {table_name} WHERE {condition}"
     else:
@@ -112,7 +120,7 @@ def retrieve_ctid(connection, table_name, condition = None):
 
     return block_id_list
 
-# Get the block content based on ctid
+# Get the block content based on block id
 ## Return the attribute name and the rows
 def execute_block_query(connection, table_name, block_id):
     query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {block_id}"
@@ -124,13 +132,18 @@ def execute_block_query(connection, table_name, block_id):
 
     return schema, result
 
+## annotate : actual vs est ==> err
+
 VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
 
 NODE_EXPLANATION = {
     'Seq Scan': 'Scans the entire relation as stored on disk.',
     'Index Scan': 'Uses index to find all matching entries, and fetches the corresponding table data.',
-    'Bitmap Index Scan': 'Instead of producing the rows directly, the bitmap index scan constructs a bitmap of potential row locations. It feeds this data to a parent Bitmap Heap Scan.',
     'Index Only Scan': 'Finds relevant records based on an Index. Performs a single read operation from the index and does not read from the corresponding table.',
+    'Bitmap Index Scan': 'Instead of producing the rows directly, the bitmap index scan constructs a bitmap of potential row locations. It feeds this data to a parent Bitmap Heap Scan.',
+    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
+    'CTE_Scan': 'Performs sequential scan of a Common Table Expression (CTE) query results.',
+    'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.',
     'Hash Join': 'Joins two record sets by hashing one of them.',
     'Aggregate': 'Groups records together based on a key or an aggregate function.',
     'Limit': 'Returns a specified number of rows from a record set.',
@@ -138,7 +151,9 @@ NODE_EXPLANATION = {
     'Nested Loop': 'Merges two record sets by looping through every record in the first set and trying to find a match in the second set.',
     'Merge Join': 'Merges two record sets by first sorting them on a join key.',
     'Hash': 'Generates a hash table from the records in the input recordset.',
-    'CTE_Scan': 'Performs sequential scan of a Common Table Expression (CTE) query results.',
-    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
-    'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.'
+    'Unique': 'Removes duplicates from the table.',
+    'Gather': 'Combines the output of child nodes, which are executed by parallel workers. Does not make any guarantee about ordering.',
+    'Gather Merge': 'Combines the output of child nodes, which are executed by parallel workers. Preserves sort order.',
+    'Append': 'Combine the results of the child operations.',
+    'Materialize': 'Stores the result of the child operation in memory, to allow fast, repeated access to it by parent operations.',
 }

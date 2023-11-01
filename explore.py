@@ -74,11 +74,11 @@ def build_tree(connection, plan, block_id_dict):
         elif (plan["Node Type"] == "Tid Scan"):
             block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"])
     
-    ## Annotation here (perhaps)
+    ## Annotation here
     root.annotations = annotate_node(plan)
 
     ## If parallel aware, append Parallel to the front of Node Type
-    if (plan["Parallel Aware"]):
+    if ("Parallel Aware" in plan and plan["Parallel Aware"]):
         plan["Node Type"] = "Parallel " + plan["Node Type"]
 
     ## Add elements in plan to attributes   
@@ -96,7 +96,20 @@ def build_tree(connection, plan, block_id_dict):
 
 # Function to annotate node
 def annotate_node(plan):
-    return ""
+    annotations = ""
+
+    ## Explanation for node type
+    if (plan["Node Type"] in NODE_EXPLANATION):
+        annotations += NODE_EXPLANATION[plan["Node Type"]] + "\n"
+    else:
+        annotations += "Performs " + plan["Node Type"] + ".\n"
+ 
+    ## Explanation for join cond
+    ## Explanation for buffer
+    ## Explanation for cost (est, actual, error); actual vs est ==> err
+    ## Explanation for rows returned
+                
+    return annotations
 
 # Get the number of blocks accessed in each scan
 ## Return the sorted list of block id
@@ -131,8 +144,6 @@ def execute_block_query(connection, table_name, block_id):
         result = cursor.fetchall()
 
     return schema, result
-
-## annotate : actual vs est ==> err
 
 VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
 

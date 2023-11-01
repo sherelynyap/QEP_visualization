@@ -112,22 +112,23 @@ class SetUp():
         try:
             # set cursor variable
             cursor = self.cursor
-            #Setting off for alternate query plans
-            # Default turn off variables not used
-            cursor.execute(self.off_config["Tid Scan"])
-            cursor.execute(self.off_config["Index Only Scan"])
-            for condition in off:
-                cursor.execute(self.off_config[condition])
+            # #Setting off for alternate query plans
+            # # Default turn off variables not used
+            # cursor.execute(self.off_config["Tid Scan"])
+            # cursor.execute(self.off_config["Index Only Scan"])
+            # for condition in off:
+            #     cursor.execute(self.off_config[condition])
             
             cursor.execute(optimalQEP)
             
             explain_query = cursor.fetchall()
 
-            # Setting config back on to set up for next alternate query plan
-            for condition in off:
-                #print(self.on_config[condition])
-                cursor.execute(self.on_config[condition])
-            # write explain details into json file
+            # # Setting config back on to set up for next alternate query plan
+            # for condition in off:
+            #     #print(self.on_config[condition])
+            #     cursor.execute(self.on_config[condition])
+
+            # # write explain details into json file
             # with open('chosenQueryPlan.json', 'w') as output_file:
             #     chosenQueryPlan = (json.dump(explain_query, output_file, ensure_ascii = False, indent = 4))
             self.queryError = False

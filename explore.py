@@ -1,3 +1,5 @@
+import json
+import sys
 import psycopg2
 import sqlparse
 import ast
@@ -10,7 +12,6 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
         user = user,
         password = password
     )
-
     return connection
 
 # Explanation for function
@@ -34,11 +35,15 @@ def get_qep_info(connection, query):
     result_dict = {}
 
     block_id_per_table = {}
-
-    with connection.cursor() as cursor:
-        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
-        result = cursor.fetchall()[0][0][0]
-
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
+            result = cursor.fetchall()[0][0][0]
+    except(Exception, psycopg2.DatabaseError) as error:    
+            # Check how to seperate errors
+            print(error)
+            return "error"
+    
     root = build_tree(connection, result['Plan'], block_id_per_table)
     planning_time = result['Planning Time']
     execution_time = result['Execution Time']
@@ -89,7 +94,8 @@ def build_tree(connection, plan, block_id_dict):
     ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:
         for child_plan in plan["Plans"]:
-            child_node = build_tree(child_plan)
+            # child_node = build_tree(child_plan)
+            child_node = build_tree(connection, child_plan, block_id_dict)
             root.children.append(child_node)
 
     return root

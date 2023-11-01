@@ -68,11 +68,11 @@ def build_tree(connection, plan, block_id_dict):
         elif (plan["Node Type"] == "Seq Scan"):
             block_id_dict[table_name] = retrieve_block_id(connection, table_name)
         elif (plan["Node Type"] == "Index Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Index Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None)
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Recheck Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None)
         elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"])
+            block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None)
     
     ## Annotation here
     root.annotations = annotate_node(plan)

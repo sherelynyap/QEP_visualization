@@ -1,5 +1,6 @@
 import psycopg2
 import sqlparse
+import ast
 
 # Explanation for function
 def connect_database(host = "localhost", database = "postgres", user = "postgres", password = "password"):
@@ -101,18 +102,20 @@ def retrieve_ctid(connection, table_name, condition = None):
         cursor.execute(query)
         result = cursor.fetchall()
 
-    ctid_set = set()
+    block_id_set = set()
     for tuple in result:
-        ctid_set.add(tuple[0])
+        ctid = ast.literal_eval(tuple[0])
+        block_id = ctid[0]
+        block_id_set.add(block_id)
 
-    ctid_list = sorted(ctid_set)
+    block_id_list = sorted(block_id_set)
 
-    return ctid_list
+    return block_id_list
 
 # Get the block content based on ctid
 ## Return the attribute name and the rows
-def execute_block_query(connection, table_name, ctid):
-    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {ctid}"
+def execute_block_query(connection, table_name, block_id):
+    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {block_id}"
 
     with connection.cursor() as cursor:
         cursor.execute(query)

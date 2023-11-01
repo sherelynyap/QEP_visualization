@@ -1,3 +1,4 @@
+import json
 import psycopg2
 import sqlparse
 
@@ -9,7 +10,6 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
         user = user,
         password = password
     )
-
     return connection
 
 # Explanation for function
@@ -33,11 +33,15 @@ def get_qep_info(connection, query):
     result_dict = {}
 
     block_id_per_table = {}
-
-    with connection.cursor() as cursor:
-        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
-        result = cursor.fetchall()[0][0][0]
-
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}")
+            result = cursor.fetchall()[0][0][0]
+    except(Exception, psycopg2.DatabaseError) as error:    
+            # Check how to seperate errors
+            print(error)
+            return "error"
+    
     root = build_tree(connection, result['Plan'], block_id_per_table)
     planning_time = result['Planning Time']
     execution_time = result['Execution Time']
@@ -84,7 +88,8 @@ def build_tree(connection, plan, block_id_dict):
     ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:
         for child_plan in plan["Plans"]:
-            child_node = build_tree(child_plan)
+            # child_node = build_tree(child_plan)
+            child_node = build_tree(connection, child_plan, block_id_dict)
             root.children.append(child_node)
 
     return root
@@ -109,10 +114,10 @@ def retrieve_ctid(connection, table_name, condition = None):
 
     return ctid_list
 
-# Get the block content based on ctid
+# Get the block content based on ctid(page number, tuple number)
 ## Return the attribute name and the rows
 def execute_block_query(connection, table_name, ctid):
-    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {ctid}"
+    query = f"SELECT * FROM {table_name} WHERE ctid = '{ctid}'"
 
     with connection.cursor() as cursor:
         cursor.execute(query)
@@ -139,3 +144,13 @@ NODE_EXPLANATION = {
     'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
     'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.'
 }
+
+if __name__ == "__main__":
+    connection = connect_database(database="TPC-H",password="since2001")
+    sql_query = "Select * FROM public.lineitem join public.supplier on public.lineitem.l_suppkey = public.supplier.s_suppkey WHERE public.supplier.s_nationkey = 3"
+    # query = parse_sql(sql_query)
+    print(sql_query)
+    result_dict = get_qep_info(connection, sql_query)
+    # # block_id_per_table
+    # with open('result_dict.json', 'w') as output_file:
+    #     json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)

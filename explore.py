@@ -1,6 +1,8 @@
 import json
+import sys
 import psycopg2
 import sqlparse
+import ast
 
 # Explanation for function
 def connect_database(host = "localhost", database = "postgres", user = "postgres", password = "password"):
@@ -61,25 +63,33 @@ def get_qep_info(connection, query):
 # Function to build QEP tree
 def build_tree(connection, plan, block_id_dict):
     root = Node()
-    
-    ## If parallel aware, add Parallel to Node Type
-    ## Annotation here (perhaps)
 
     ## Check if disk block access involved
     if (plan["Node Type"] in VALID_SCAN):
         table_name = plan["Relation Name"]
-
-        if (plan["Node Type"] == "Index Only Scan"):
-            block_id_dict[table_name] = []
-        elif (plan["Node Type"] == "Seq Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name)
-        elif (plan["Node Type"] == "Index Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Index Cond"])
-        elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["Recheck Cond"])
-        elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name] = retrieve_ctid(connection, table_name, plan["TID Cond"])
+        try:
+            if (plan["Node Type"] == "Index Only Scan"):
+                block_id_dict[table_name] = []
+            elif (plan["Node Type"] == "Seq Scan"):
+                block_id_dict[table_name] = retrieve_block_id(connection, table_name)
+            elif (plan["Node Type"] == "Index Scan"):
+                block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Index Cond"])
+            elif (plan["Node Type"] == "Bitmap Heap Scan"):
+                block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["Recheck Cond"])
+            elif (plan["Node Type"] == "Tid Scan"):
+                block_id_dict[table_name] = retrieve_block_id(connection, table_name, plan["TID Cond"])
+        except Exception as e:
+            print(f"{type(e).__name__}: {str(e)}")
+            print(plan)
+            sys.exit(1)
     
+    ## Annotation here
+    root.annotations = annotate_node(plan)
+
+    ## If parallel aware, append Parallel to the front of Node Type
+    if ("Parallel Aware" in plan and plan["Parallel Aware"]):
+        plan["Node Type"] = "Parallel " + plan["Node Type"]
+
     ## Add elements in plan to attributes   
     for key, val in plan.items():
         if (key != "Plans"):
@@ -94,9 +104,26 @@ def build_tree(connection, plan, block_id_dict):
 
     return root
 
+# Function to annotate node
+def annotate_node(plan):
+    annotations = ""
+
+    ## Explanation for node type
+    if (plan["Node Type"] in NODE_EXPLANATION):
+        annotations += NODE_EXPLANATION[plan["Node Type"]] + "\n"
+    else:
+        annotations += "Performs " + plan["Node Type"] + ".\n"
+ 
+    ## Explanation for join cond
+    ## Explanation for buffer
+    ## Explanation for cost (est, actual, error); actual vs est ==> err
+    ## Explanation for rows returned
+                
+    return annotations
+
 # Get the number of blocks accessed in each scan
-## Return the sorted list of ctid
-def retrieve_ctid(connection, table_name, condition = None):
+## Return the sorted list of block id
+def retrieve_block_id(connection, table_name, condition = None):
     if (condition):
         query = f"SELECT ctid, * FROM {table_name} WHERE {condition}"
     else:
@@ -106,18 +133,20 @@ def retrieve_ctid(connection, table_name, condition = None):
         cursor.execute(query)
         result = cursor.fetchall()
 
-    ctid_set = set()
+    block_id_set = set()
     for tuple in result:
-        ctid_set.add(tuple[0])
+        ctid = ast.literal_eval(tuple[0])
+        block_id = ctid[0]
+        block_id_set.add(block_id)
 
-    ctid_list = sorted(ctid_set)
+    block_id_list = sorted(block_id_set)
 
-    return ctid_list
+    return block_id_list
 
-# Get the block content based on ctid(page number, tuple number)
+# Get the block content based on block id
 ## Return the attribute name and the rows
-def execute_block_query(connection, table_name, ctid):
-    query = f"SELECT * FROM {table_name} WHERE ctid = '{ctid}'"
+def execute_block_query(connection, table_name, block_id):
+    query = f"SELECT * FROM {table_name} WHERE (ctid::text::point)[0] = {block_id}"
 
     with connection.cursor() as cursor:
         cursor.execute(query)
@@ -131,8 +160,11 @@ VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', '
 NODE_EXPLANATION = {
     'Seq Scan': 'Scans the entire relation as stored on disk.',
     'Index Scan': 'Uses index to find all matching entries, and fetches the corresponding table data.',
-    'Bitmap Index Scan': 'Instead of producing the rows directly, the bitmap index scan constructs a bitmap of potential row locations. It feeds this data to a parent Bitmap Heap Scan.',
     'Index Only Scan': 'Finds relevant records based on an Index. Performs a single read operation from the index and does not read from the corresponding table.',
+    'Bitmap Index Scan': 'Instead of producing the rows directly, the bitmap index scan constructs a bitmap of potential row locations. It feeds this data to a parent Bitmap Heap Scan.',
+    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
+    'CTE_Scan': 'Performs sequential scan of a Common Table Expression (CTE) query results.',
+    'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.',
     'Hash Join': 'Joins two record sets by hashing one of them.',
     'Aggregate': 'Groups records together based on a key or an aggregate function.',
     'Limit': 'Returns a specified number of rows from a record set.',
@@ -140,17 +172,9 @@ NODE_EXPLANATION = {
     'Nested Loop': 'Merges two record sets by looping through every record in the first set and trying to find a match in the second set.',
     'Merge Join': 'Merges two record sets by first sorting them on a join key.',
     'Hash': 'Generates a hash table from the records in the input recordset.',
-    'CTE_Scan': 'Performs sequential scan of a Common Table Expression (CTE) query results.',
-    'Bitmap Heap Scan': 'Searches through the pages returned by the Bitmap Index Scan for relevant rows.',
-    'Tid Scan': 'Performs scan of a table by TID. This is fast, but unreliable long-term.'
+    'Unique': 'Removes duplicates from the table.',
+    'Gather': 'Combines the output of child nodes, which are executed by parallel workers. Does not make any guarantee about ordering.',
+    'Gather Merge': 'Combines the output of child nodes, which are executed by parallel workers. Preserves sort order.',
+    'Append': 'Combine the results of the child operations.',
+    'Materialize': 'Stores the result of the child operation in memory, to allow fast, repeated access to it by parent operations.',
 }
-
-if __name__ == "__main__":
-    connection = connect_database(database="TPC-H",password="since2001")
-    sql_query = "Select * FROM public.lineitem join public.supplier on public.lineitem.l_suppkey = public.supplier.s_suppkey WHERE public.supplier.s_nationkey = 3"
-    # query = parse_sql(sql_query)
-    print(sql_query)
-    result_dict = get_qep_info(connection, sql_query)
-    # # block_id_per_table
-    # with open('result_dict.json', 'w') as output_file:
-    #     json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)

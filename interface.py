@@ -141,6 +141,9 @@ class ProjectWindow(tk.Tk):
             return
         
         root = result_dict['root']
+        '''# block_id_per_table
+        with open('result_dict.json', 'w') as output_file:
+            json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)'''
         self.create_disk_tab(result_dict['block_id_per_table'])
 
         traverseTree(root)
@@ -461,23 +464,7 @@ class ProjectWindow(tk.Tk):
         self.blocks_frame = None
         self.block_content_frame = None
         
-        self.block_id_per_table = {
-                                    "lineitem": [
-                                        "(0,1)",
-                                        "(0,10)",
-                                        "(0,11)",
-                                        "(0,12)"
-                                    ],
-                                    "supplier": [
-                                        "(0,1)",
-                                        "(0,10)",
-                                        "(0,11)",
-                                        "(0,12)",
-                                        "(0,13)",
-                                        "(0,14)",
-                                        "(0,15)"
-                                    ]
-                                }
+        self.block_id_per_table = {}
         self.connection = connect_database(database="TPC-H",password="since2001")
         self.create_QEP_tab()
         self.create_disk_tab(self.block_id_per_table)

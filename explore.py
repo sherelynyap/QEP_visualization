@@ -122,12 +122,38 @@ def annotate_node(plan):
     else:
         annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n"
  
-    ## Explanation for join cond, join type
-    "This is a {} join using condition {}"
+    ## Explanation for join type
+    if ("Join Type" in plan):
+        annotations += "{} join is performed.".format(plan["Join Type"])
+
+    ## Explanation for join condition
+    if ("Hash Cond" in plan):
+        annotations += " Hash condition is {}.\n".format(plan["Hash Cond"])
+    elif ("Merge Cond" in plan):
+        annotations += " Merge condition is {}.\n".format(plan["Merge Cond"])
+    else:
+        annotations += "\n"
+
+    ## Explanation for est cost
+    annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n"\
+        .format(plan["Startup Cost"], plan["Total Cost"])
     
-    ## Explanation for buffer ==> how many saved   
-    ## Explanation for cost (est, actual, error); actual vs est ==> err
-    ## Explanation for rows returned (only actual), how many removed by filter
+    ## Explanation for actual time
+    annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n"\
+        .format(plan["Actual Startup Time"], plan["Actual Total Time"])
+
+    ## Explanation for buffer ==> how many saved
+
+
+    ## Explanation for rows returned, errors and how many removed by filter
+    error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
+    annotations += "The rows to be produced is estimated to be {}, while in the actual run {} rows are produced. The error of estimation is {:.2f}%"\
+        .format(plan["Plan Rows"], plan["Actual Rows"], error)
+
+    if ("Rows Removed by Filter" in plan):
+        annotations += "{} rows are removed by filtering. \n".format(plan["Rows Removed by Filter"])
+    else:
+        annotations += "\n"
                 
     return annotations
 

@@ -24,8 +24,8 @@ def traverseTree(root):
     if not root:
         return
     
-    for k, v in root.attributes.items():
-        root.annotations+= f"{k}: {v}\n"
+    # for k, v in root.attributes.items():
+    #     root.annotations+= f"{k}: {v}\n"
     if root.children:
         for child in root.children:
             traverseTree(child)

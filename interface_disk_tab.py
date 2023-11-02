@@ -1,198 +1,25 @@
-from math import floor
-from tkinter import messagebox, font
-from typing import Tuple, Union
 import tkinter as tk
 from tkinter import ttk
 from explore import *
 
-NoneType = type(None)
-
-def countLeafNodes(node: Node):
-    leafNodesNum = 0
-    queue = [node]
-    while (len(queue) > 0):
-        curNode = queue.pop()
-        if (len(curNode.children) > 0):
-            for node in curNode.children:
-                queue.append(node)
-        else:
-            leafNodesNum += 1
-    return leafNodesNum
-
-def traverseTree(root):
-    if not root:
-        return
-    
-    for k, v in root.attributes.items():
-        root.annotations+= f"{k}: {v}\n"
-    if root.children:
-        for child in root.children:
-            traverseTree(child)
-class DisplayNode():
-    def __init__(self) -> None:
-        self.children: list[DisplayNode] = []
-        self.text = ""
-        self.annotations = ""
-        self.depth: int = 0
-        self.left_bound: int = 0
-        self.right_bound: int = 0
-
-
-def createDisplayNode(root: Node):
-    maxBound = countLeafNodes(root)
-    rootDisplay = DisplayNode()
-    rootDisplay.left_bound = 0
-    rootDisplay.right_bound = maxBound
-    rootDisplay.text = root.attributes['Node Type']
-    rootDisplay.annotations = root.annotations
-    nodeQueue: list[Tuple[DisplayNode, Node, Tuple[int, int]]] = []  # tuple of (displayNode parent, node child)
-    if (len(root.children) == 1):
-        nodeQueue.append((rootDisplay, root.children[0], (0, maxBound)))
-    elif (len(root.children) == 2):
-        nodeQueue.append((rootDisplay, root.children[0], (0, countLeafNodes(root.children[0]))))
-        nodeQueue.append((rootDisplay, root.children[1], (countLeafNodes(root.children[0]), maxBound)))
-    while (len(nodeQueue) > 0):
-        curNode = nodeQueue.pop(0)
-        newChild = DisplayNode()
-        newChild.left_bound = curNode[2][0]
-        newChild.right_bound = curNode[2][1]
-        newChild.text = curNode[1].attributes['Node Type']
-        newChild.annotations = curNode[1].annotations
-        newChild.depth = curNode[0].depth + 1
-        # append to parent
-        curNode[0].children.append(newChild)
-        if (len(curNode[1].children) == 1):
-            nodeQueue.append((newChild, curNode[1].children[0], (newChild.left_bound, newChild.right_bound)))
-        elif (len(curNode[1].children) == 2):
-            nodeQueue.append((newChild, curNode[1].children[0],
-                              (newChild.left_bound, newChild.left_bound + countLeafNodes(curNode[1].children[0]))))
-            nodeQueue.append((newChild, curNode[1].children[1],
-                              (newChild.left_bound + countLeafNodes(curNode[1].children[0]), newChild.right_bound)))
-    return rootDisplay
-
 class ProjectWindow(tk.Tk):
-    def scroll_move(self, event):
-        self.planCanvas.scan_dragto(event.x, event.y, gain=1)
-
-    def scroll_start(self, event):
-        self.planCanvas.scan_mark(event.x, event.y)
-
-    def onObjectClick(self, event):
-        x = event.widget.canvasx(event.x)
-        y = event.widget.canvasy(event.y)
-        self.annoStr.set(self.dictExtraToID[event.widget.find_closest(x, y)[0]])
-        if (self.dictExtraToID[event.widget.find_closest(x, y)[0]] != ""):
-            self.open_popup(self.dictExtraToID[event.widget.find_closest(x, y)[0]])
     
-    def createTextRectangle(self, text: str, canvas: tk.Canvas, x0: int, y0: int):
-        rectangle = canvas.create_rectangle(x0, y0, x0 + 100, y0 + 50, fill="#FFFFFF")
-        textline = canvas.create_text(x0 + 50, y0 + 25, text=text, justify='center')
-        self.textBoxes.append(textline)
-        self.planCanvas.tag_bind(rectangle, '<ButtonPress-1>', self.onObjectClick)
-        self.planCanvas.tag_bind(textline, '<ButtonPress-1>', self.onObjectClick)
-        return (rectangle, textline)
-
-    def open_popup(self, text: str):
-        top = tk.Toplevel(self)
-        top.title("Annotation")
-        lbl = tk.Label(top, text=text, font=('Arial', 12, ''), wraplength=300)
-        lbl.pack()
-        btn = tk.Button(top, text="Close", command=top.destroy)
-        btn.pack()
-
-    def drawCanvasPlan(self, root: Node):
-        self.planCanvas.delete("all")
-        self.dictExtraToID = {}
-        self.scale = 0
-        self.textBoxes = []
-
-        rootD = createDisplayNode(root)
-
-        drawQueue: list[Tuple[DisplayNode, Union[DisplayNode, NoneType]]] = [(rootD, None)]
-        while (len(drawQueue) > 0):
-            curTup = drawQueue.pop(0)
-            curNode = curTup[0]
-            for child in curNode.children:
-                drawQueue.append((child, curNode))
-            x = (curNode.left_bound * 200 + curNode.right_bound * 200) / 2 - 50
-            y = curNode.depth * 100 + 50 - 25
-            (rect, line) = self.createTextRectangle(curNode.text, self.planCanvas, x, y)
-            self.dictExtraToID[rect] = curNode.annotations
-            self.dictExtraToID[line] = curNode.annotations
-            if (curTup[1] != None):
-                self.planCanvas.create_line((curNode.left_bound * 200 + curNode.right_bound * 200) / 2,
-                                            curNode.depth * 100 + 50 - 25,
-                                            (curTup[1].left_bound * 200 + curTup[1].right_bound * 200) / 2,
-                                            (curNode.depth - 1) * 100 + 50 + 25)
-
-    def processQuery(self):
-        # query = "Select * FROM public.lineitem join public.supplier on public.lineitem.l_suppkey = public.supplier.s_suppkey WHERE public.supplier.s_nationkey = 3"
-        query = self.queryTextBox.get(1.0, "end-1c")
-        print(query)
-
-        # Clear query
-        self.queryTextBox.delete(1.0, "end")
-        
-        result_dict = get_qep_info(self.connection, query)
-        if result_dict == "error":
-            print("Please check your sql statements")
-            messagebox.showerror(
-                title="Warning", message="Please check your sql statement entered.")
-            return
-        
-        root = result_dict['root']
-        '''# block_id_per_table
-        with open('result_dict.json', 'w') as output_file:
-            json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)'''
-        self.create_disk_tab(result_dict['block_id_per_table'])
-
-        traverseTree(root)
-
-        # Draw optimal query tree
-        self.drawCanvasPlan(root)
-
-    def centreCanvas(self):
-        self.planCanvas.scale("all", 0, 0, pow(0.8, self.scale), pow(0.8, self.scale))
-        self.planCanvas.xview_moveto(0.5)
-        self.planCanvas.yview_moveto(0)
-        writingFont = font.nametofont("TkDefaultFont").copy()
-        for text in self.textBoxes:
-            self.planCanvas.itemconfig(text, font=writingFont)
-
-        self.scale = 0
-
-    def zoomIn(self):
-        self.scale += 1
-        self.planCanvas.scale("all", 0, 0, 1.25, 1.25)
-        writingFont = font.nametofont("TkDefaultFont").copy()
-        writingFont.config(size=floor(writingFont.cget("size") * pow(1.1, self.scale)))
-        for text in self.textBoxes:
-            self.planCanvas.itemconfig(text, font=writingFont)
-
-    def zoomOut(self):
-        self.scale -= 1
-        self.planCanvas.scale("all", 0, 0, 0.8, 0.8)
-        writingFont = font.nametofont("TkDefaultFont").copy()
-        writingFont.config(size=floor(writingFont.cget("size") * pow(1.1, self.scale)))
-        for text in self.textBoxes:
-            self.planCanvas.itemconfig(text, font=writingFont)
-
     def destroy_block_content_display(self):
-            if(self.display_block_label is not None):
-                self.display_block_label.destroy()
-                self.display_block_label = None
+        if(self.display_block_label is not None):
+            self.display_block_label.destroy()
+            self.display_block_label = None
 
-            if(self.table is not None):
-                self.table.destroy()
-                self.table = None
+        if(self.table is not None):
+            self.table.destroy()
+            self.table = None
 
-            if(self.v_scroll is not None):
-                self.v_scroll.destroy()
-                self.v_scroll = None
+        if(self.v_scroll is not None):
+            self.v_scroll.destroy()
+            self.v_scroll = None
 
-            if(self.h_scroll is not None):
-                self.h_scroll.destroy()
-                self.h_scroll = None
+        if(self.h_scroll is not None):
+            self.h_scroll.destroy()
+            self.h_scroll = None
 
     def destroy_block_frame(self):
         if(self.block_frame_label is not None):
@@ -465,43 +292,7 @@ class ProjectWindow(tk.Tk):
             self.add_page_button(relation, page, counter)
             counter+=1
         self.page_canvas.configure(scrollregion=self.page_canvas.bbox("all"))
-        
-    def create_QEP_tab(self):
-        self.QEP_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.QEP_tab, text="QEP_tab")
 
-        inputFrame = tk.Frame(self.QEP_tab, borderwidth=10)
-        inputFrame.pack(side=tk.LEFT, expand=True, fill="both")
-
-        planFrame = tk.Frame(self.QEP_tab)
-        planFrame.pack(side=tk.RIGHT, expand=True, fill="both")
-        
-        zoomFrame = tk.Frame(planFrame)
-        zoomFrame.pack()
-        centreBtn = tk.Button(zoomFrame, text="RESET VIEW", command=self.centreCanvas)
-        centreBtn.pack(side=tk.RIGHT)
-        zoomInBtn = tk.Button(zoomFrame, text="Zoom In", command=self.zoomIn)
-        zoomInBtn.pack(side=tk.LEFT)
-        zoomOutBtn = tk.Button(zoomFrame, text="Zoom Out", command=self.zoomOut)
-        zoomOutBtn.pack(side=tk.RIGHT)
-
-        self.planCanvas = tk.Canvas(planFrame, bg="#FFFFFF")
-        self.planCanvas.pack(expand=True, fill="both")
-
-        self.planCanvas.bind("<ButtonPress-1>", self.scroll_start)
-        self.planCanvas.bind("<B1-Motion>", self.scroll_move)
-
-        queryLabel = tk.Label(inputFrame, text="Query:")
-        queryLabel.pack(anchor=tk.W)
-
-        self.queryTextBox = tk.Text(inputFrame, height=10, width=30)
-        self.queryTextBox.pack(expand=True, fill="both")
-
-        processBtn = tk.Button(inputFrame, text="Process query", command=self.processQuery)
-        processBtn.pack()
-
-        self.annoStr = tk.StringVar()
-        self.resizable(True, True)
 
     def create_disk_tab(self, block_id_per_table):
         # Destroy disk_tab() if needed
@@ -542,14 +333,11 @@ class ProjectWindow(tk.Tk):
 
         # Configure relation_frame to display buttons of relation
         self.config_relation_frame(block_id_per_table)
-        
+
+       
 
     def __init__(self):
         super().__init__()
-        self.scale = 0
-        self.dictExtraToID = {}
-        self.textBoxes = []
-
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         screen_width//=2
@@ -559,7 +347,9 @@ class ProjectWindow(tk.Tk):
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True)
-        
+
+        self.QEP_tab = ttk.Frame(self.notebook)
+
         # Add these to ProjectWindow() attributes
         self.disk_tab = None
         self.relation_frame = None
@@ -575,11 +365,34 @@ class ProjectWindow(tk.Tk):
         self.block_scrollbar = None
         self.block_canvas = None
         self.block_scrollbar = None
-        
-        self.block_id_per_table = {}
-        self.connection = connect_database(database="TPC-H",password="since2001")
-        self.create_QEP_tab()
-        self.create_disk_tab(self.block_id_per_table)
+
+        self.notebook.add(self.QEP_tab, text="QEP_tab")
+        testingRelationTable = {"Table1": [1], 
+                                "Table2": [2],
+                                "Table3": [3], 
+                                "Table4": [4],
+                                "Table5": [5], 
+                                "Table6": [6],
+                                "Table7": [7], 
+                                "Table8": [8],
+                                "Table9": [9], 
+                                "Table10": [10, 20, 30, 40, 50, 60, 70, 80, 80, 100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 57, 23, 31, 35, 235, 124],
+                                "Table11": [11], 
+                                "Table12": [12],
+                                "Table13": [13], 
+                                "Table14": [14],
+                                "Table15": [15], 
+                                "Table16": [16],
+                                "Table17": [17], 
+                                "Table18": [18],
+                                "Table19": [19], 
+                                "Table200000000000000000000000000": [20]
+                                }
+        temp = []
+        for i in range(10000):
+            temp.append(i)
+        testingRelationTable["Table11"] = temp
+        self.create_disk_tab(testingRelationTable)
 
 # Create an instance of your custom window class and start the Tkinter mainloop
 if __name__ == "__main__":

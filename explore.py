@@ -4,7 +4,7 @@ import psycopg2
 import sqlparse
 import ast
 
-# Explanation for function
+# Function to connect to database
 def connect_database(host = "localhost", database = "postgres", user = "postgres", password = "password"):
     connection = psycopg2.connect(
         host = host,
@@ -14,7 +14,7 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
     )
     return connection
 
-# Explanation for function
+# Function to parse SQL statement
 def parse_sql(query):
     parsed = sqlparse.parse(query)
     return parsed
@@ -94,6 +94,10 @@ def build_tree(connection, plan, block_id_dict):
     if ("Parallel Aware" in plan and plan["Parallel Aware"]):
         plan["Node Type"] = "Parallel " + plan["Node Type"]
 
+    ## Add table name to next line for scan
+    if ("Relation Name" in plan):
+        plan["Node Type"] = plan["Node Type"] + "\n(" + plan["Relation Name"] + ")"
+
     ## Add elements in plan to attributes   
     for key, val in plan.items():
         if (key != "Plans"):
@@ -102,7 +106,6 @@ def build_tree(connection, plan, block_id_dict):
     ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:
         for child_plan in plan["Plans"]:
-            # child_node = build_tree(child_plan)
             child_node = build_tree(connection, child_plan, block_id_dict)
             root.children.append(child_node)
 
@@ -118,10 +121,51 @@ def annotate_node(plan):
     else:
         annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n"
  
-    ## Explanation for join cond, join type
-    ## Explanation for buffer ==> how many saved   
-    ## Explanation for cost (est, actual, error); actual vs est ==> err
-    ## Explanation for rows returned (only actual), how many removed by filter
+    ## Explanation for join type
+    if ("Join Type" in plan):
+        annotations += "{} join is performed.".format(plan["Join Type"])
+
+    ## Explanation for join condition
+    if ("Hash Cond" in plan):
+        annotations += " Hash condition is {}.\n".format(plan["Hash Cond"])
+    elif ("Merge Cond" in plan):
+        annotations += " Merge condition is {}.\n".format(plan["Merge Cond"])
+    else:
+        annotations += "\n"
+
+    ## Explanation for est cost
+    annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n"\
+        .format(plan["Startup Cost"], plan["Total Cost"])
+    
+    ## Explanation for actual time
+    annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n"\
+        .format(plan["Actual Startup Time"], plan["Actual Total Time"])
+
+    ## Explanation for buffer read
+    annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
+        .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])
+    annotations += "{} from shared blocks, {} from local blocks, and {} from temp blocks.\n"\
+        .format(plan["Shared Read Blocks"], plan["Local Read Blocks"], plan["Temp Read Blocks"])
+    
+    ## Explanation for buffer hit
+    annotations += "Total {} block accesses are saved through buffer cache hit."\
+        .format(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])
+    annotations += "{} from shared blocks, {} from local blocks.\n"\
+        .format(plan["Shared Hit Blocks"], plan["Local Hit Blocks"])
+    
+    ## Explanation for proportion of hit to read blocks
+    annotations += "The proportion of hit to read for shared and local blocks is {}%, indicating the buffer cache performance.\n"\
+        .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]))
+
+    ## Explanation for rows returned, errors and how many removed by filter
+    error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
+    annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced. The error of estimation is {:.2f}%"\
+        .format(plan["Plan Rows"], plan["Actual Rows"], error)
+
+    if ("Rows Removed by Filter" in plan):
+        annotations += "{} rows (per-loop) are removed by filtering. \n".format(plan["Rows Removed by Filter"])
+    else:
+        annotations += "\n"
                 
     return annotations
 
@@ -158,8 +202,6 @@ def execute_block_query(connection, table_name, block_id):
     return schema, result
 
 VALID_SCAN = {'Seq Scan', 'Index Scan', 'Bitmap Heap Scan', 'Index Only Scan', 'Tid Scan'}
-
-VALID_SCAN_CONDITION = {}
 
 NODE_EXPLANATION = {
     'Seq Scan': 'Scans the entire relation as stored on disk.',

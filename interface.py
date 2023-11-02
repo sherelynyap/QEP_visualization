@@ -4,6 +4,7 @@ from typing import Tuple, Union
 import tkinter as tk
 from tkinter import ttk
 from explore import *
+import threading
 
 NoneType = type(None)
 
@@ -124,6 +125,18 @@ class ProjectWindow(tk.Tk):
                                             curNode.depth * 100 + 50 - 25,
                                             (curTup[1].left_bound * 200 + curTup[1].right_bound * 200) / 2,
                                             (curNode.depth - 1) * 100 + 50 + 25)
+    def runQuery(self):
+        self.planCanvas.delete("all")
+        self.pb = ttk.Progressbar(
+            self.planCanvas,
+            orient='horizontal',
+            mode='indeterminate',
+            length=280
+        )
+        self.pb.place(relx=.5, rely=.5, anchor="c")
+        self.pb.start(10)
+        thread = threading.Thread(target=self.processQuery)
+        thread.start()
 
     def processQuery(self):
         # query = "Select * FROM public.lineitem join public.supplier on public.lineitem.l_suppkey = public.supplier.s_suppkey WHERE public.supplier.s_nationkey = 3"
@@ -147,7 +160,7 @@ class ProjectWindow(tk.Tk):
         self.create_disk_tab(result_dict['block_id_per_table'])
 
         traverseTree(root)
-
+        self.pb.place_forget()
         # Draw optimal query tree
         self.drawCanvasPlan(root)
 
@@ -352,7 +365,7 @@ class ProjectWindow(tk.Tk):
     def display_relation(self, relation, ctid):
         self.destroy_block_content_display()
         # Rerieve the schema and result based on relation and ctid
-        schema, result = execute_block_query(None, relation, ctid)
+        schema, result = execute_block_query(self.connection, relation, ctid)
 
         # Adjust Layout
         self.block_content_frame.grid_rowconfigure(0, weight=1)      
@@ -490,14 +503,14 @@ class ProjectWindow(tk.Tk):
 
         self.planCanvas.bind("<ButtonPress-1>", self.scroll_start)
         self.planCanvas.bind("<B1-Motion>", self.scroll_move)
-
+        
         queryLabel = tk.Label(inputFrame, text="Query:")
         queryLabel.pack(anchor=tk.W)
 
         self.queryTextBox = tk.Text(inputFrame, height=10, width=30)
         self.queryTextBox.pack(expand=True, fill="both")
 
-        processBtn = tk.Button(inputFrame, text="Process query", command=self.processQuery)
+        processBtn = tk.Button(inputFrame, text="Process query", command=self.runQuery)
         processBtn.pack()
 
         self.annoStr = tk.StringVar()

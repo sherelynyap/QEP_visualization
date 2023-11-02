@@ -94,6 +94,10 @@ def build_tree(connection, plan, block_id_dict):
     if ("Parallel Aware" in plan and plan["Parallel Aware"]):
         plan["Node Type"] = "Parallel " + plan["Node Type"]
 
+    ## Add table name to next line for scan
+    if ("Relation Name" in plan):
+        plan["Node Type"] = plan["Node Type"] + "\n(" + plan["Relation Name"] + ")"
+
     ## Add elements in plan to attributes   
     for key, val in plan.items():
         if (key != "Plans"):
@@ -119,6 +123,8 @@ def annotate_node(plan):
         annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n"
  
     ## Explanation for join cond, join type
+    "This is a {} join using condition {}"
+    
     ## Explanation for buffer ==> how many saved   
     ## Explanation for cost (est, actual, error); actual vs est ==> err
     ## Explanation for rows returned (only actual), how many removed by filter

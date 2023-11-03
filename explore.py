@@ -144,26 +144,30 @@ def annotate_node(plan):
     ## Explanation for buffer read
     annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
         .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])
-    annotations += "{} from shared blocks, {} from local blocks, and {} from temp blocks.\n"\
+    annotations += " {} from shared blocks, {} from local blocks, and {} from temp blocks.\n"\
         .format(plan["Shared Read Blocks"], plan["Local Read Blocks"], plan["Temp Read Blocks"])
     
     ## Explanation for buffer hit
     annotations += "Total {} block accesses are saved through buffer cache hit."\
         .format(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])
-    annotations += "{} from shared blocks, {} from local blocks.\n"\
+    annotations += " {} from shared blocks, {} from local blocks.\n"\
         .format(plan["Shared Hit Blocks"], plan["Local Hit Blocks"])
     
     ## Explanation for proportion of hit to read blocks
-    annotations += "The proportion of hit to read for shared and local blocks is {}%, indicating the buffer cache performance.\n"\
-        .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]))
+    if ((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]) != 0):
+        annotations += "The proportion of hit to read for shared and local blocks is {:.2f}%, indicating the buffer cache performance.\n"\
+            .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]))
 
     ## Explanation for rows returned, errors and how many removed by filter
-    error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
-    annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced. The error of estimation is {:.2f}%"\
+    annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\
         .format(plan["Plan Rows"], plan["Actual Rows"], error)
+    
+    if (plan["Plan Rows"] != 0):
+        error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
+        annotations += " The error of estimation is {:.2f}%.".format(error)
 
     if ("Rows Removed by Filter" in plan):
-        annotations += "{} rows (per-loop) are removed by filtering. \n".format(plan["Rows Removed by Filter"])
+        annotations += " {} rows (per-loop) are removed by filtering. \n".format(plan["Rows Removed by Filter"])
     else:
         annotations += "\n"
                 

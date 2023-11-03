@@ -143,8 +143,9 @@ class ProjectWindow(tk.Tk):
         query = self.queryTextBox.get(1.0, "end-1c")
         print(query)
 
-        # Clear query
+        # Clear query and info
         self.queryTextBox.delete(1.0, "end")
+        self.infoLabel.config(text = f"Planning time:\nExecution time:\nBuffer size:")
         
         result_dict = get_qep_info(self.connection, query)
         if result_dict == "error":
@@ -154,6 +155,7 @@ class ProjectWindow(tk.Tk):
             return
         
         root = result_dict['root']
+        self.infoLabel.config(text = f"Planning time:\t{result_dict['planning_time']} ms\nExecution time:\t{result_dict['execution_time']} ms\nBuffer size:\t{result_dict['buffer_size']}")
         '''# block_id_per_table
         with open('result_dict.json', 'w') as output_file:
             json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)'''
@@ -194,7 +196,13 @@ class ProjectWindow(tk.Tk):
         if(self.display_block_label is not None):
             self.display_block_label.destroy()
             self.display_block_label = None
+        if(self.display_block_label is not None):
+            self.display_block_label.destroy()
+            self.display_block_label = None
 
+        if(self.table is not None):
+            self.table.destroy()
+            self.table = None
         if(self.table is not None):
             self.table.destroy()
             self.table = None
@@ -202,32 +210,16 @@ class ProjectWindow(tk.Tk):
         if(self.v_scroll is not None):
             self.v_scroll.destroy()
             self.v_scroll = None
+        if(self.v_scroll is not None):
+            self.v_scroll.destroy()
+            self.v_scroll = None
 
         if(self.h_scroll is not None):
             self.h_scroll.destroy()
             self.h_scroll = None
-
-        self.disk_tab = None
-        self.relation_frame = None
-        self.relation_canvas = None
-        self.relation_canvas_inner_frame = None
-        self.display_block_label = None
-        self.table = None
-        self.v_scroll = None
-        self.h_scroll = None
-        self.blocks_frame = None
-        self.block_frame_label = None
-        self.previous_button = None
-        self.cur_page_label = None
-        self.cur_page = 1
-        self.total_page = 1
-        self.pages = []
-        self.cur_relation = None
-        self.next_button = None
-        self.block_content_frame = None
-        self.block_scrollbar = None
-        self.block_canvas = None
-        self.block_scrollbar = None
+        if(self.h_scroll is not None):
+            self.h_scroll.destroy()
+            self.h_scroll = None
 
     def destroy_block_frame(self):
         if(self.block_frame_label is not None):
@@ -286,17 +278,26 @@ class ProjectWindow(tk.Tk):
         self.block_frame.grid_columnconfigure(0, weight=1)  
         self.block_frame.grid_columnconfigure(1, weight=9)
         self.block_frame.grid_columnconfigure(2, weight=1)    
+        self.block_frame.grid_rowconfigure(1, weight=9)
+        self.block_frame.grid_rowconfigure(2, weight=1)
+
+        self.block_frame.grid_columnconfigure(0, weight=1)  
+        self.block_frame.grid_columnconfigure(1, weight=9)
+        self.block_frame.grid_columnconfigure(2, weight=1)    
         
         # Block_frame_label on block_frame
         self.block_frame_label = tk.Label(self.block_frame, text='Block Options', wraplength=90,  borderwidth=2, relief="groove")
+        self.block_frame_label.grid(row=0, column=0, sticky="nsew", padx=0, pady=0, columnspan=3)
         self.block_frame_label.grid(row=0, column=0, sticky="nsew", padx=0, pady=0, columnspan=3)
 
         # Create block_canvas to hold scrollbar and dynamic buttons
         self.block_canvas = tk.Canvas(self.block_frame, bg="white", width = 0, height=200)
         self.block_canvas.grid(row=1, column=0, sticky = "nsew", columnspan=2)
+        self.block_canvas.grid(row=1, column=0, sticky = "nsew", columnspan=2)
         
         # Create and place the scrollbar
         self.block_scrollbar = tk.Scrollbar(self.block_frame, orient="vertical", command=self.block_canvas.yview, width = 0)
+        self.block_scrollbar.grid(row=1, column=2, columnspan = 1, sticky="nsew")
         self.block_scrollbar.grid(row=1, column=2, columnspan = 1, sticky="nsew")
         self.block_canvas.config(yscrollcommand=self.block_scrollbar.set)
         self.block_canvas.bind('<Configure>', self.on_configure_block_canvas)
@@ -309,9 +310,54 @@ class ProjectWindow(tk.Tk):
         self.block_buttons = []
         # print("block_IDs")
         # print(block_IDs)
+        # print("block_IDs")
+        # print(block_IDs)
         for block in block_IDs:
             self.add_block_button(relation, block)
         self.block_canvas.configure(scrollregion=self.block_canvas.bbox("all"))
+
+        # Create buttons (Previous and Next)
+        self.previous_button = tk.Button(self.block_frame, text="<", bg = "grey50")
+        self.previous_button.configure(command = lambda btn = self.previous_button:self.click_previous_button(relation, block, btn))
+        self.previous_button.grid(row=2, column=0, sticky = "nsew", columnspan=1)
+
+        # Create Label for displaying current page
+        self.cur_page_label = tk.Label(self.block_frame, text= str(self.cur_page)+"/"+str(self.total_page))
+        self.cur_page_label.grid(row=2, column=1, sticky="nsew", columnspan=1)
+
+        # Create buttons (Previous and Next)
+        self.next_button = tk.Button(self.block_frame, text=">", bg = "grey50")
+        self.next_button.configure(command = lambda btn = self.next_button:self.click_next_button(relation, block, btn))
+        self.next_button.grid(row=2, column=2, sticky = "nsew", columnspan=1)
+
+        self.configure_next_previous_buttons()
+
+    def configure_next_previous_buttons(self):
+        self.cur_page_label.configure(text= str(self.cur_page+1)+"/"+str(self.total_page))
+        self.destroy_block_content_display()
+        if(self.cur_page>=(self.total_page-1)):
+            self.next_button.config(state="disabled")
+        
+        else:
+            self.next_button.config(state="normal")
+        
+        if(self.cur_page<(1)):
+            self.previous_button.config(state="disabled")
+        
+        else:
+            self.previous_button.config(state="normal")
+            
+
+    def click_next_button(self,relation, block, btn):
+        self.cur_page+=1
+        self.config_block_frame(self.cur_relation, self.pages[self.cur_page])
+        self.configure_next_previous_buttons()
+        
+    def click_previous_button(self,relation, block, btn):
+        self.cur_page-=1
+        self.config_block_frame(self.cur_relation, self.pages[self.cur_page])
+        self.configure_next_previous_buttons()
+        
 
         # Create buttons (Previous and Next)
         self.previous_button = tk.Button(self.block_frame, text="<", bg = "grey50")
@@ -367,7 +413,12 @@ class ProjectWindow(tk.Tk):
             b.configure(bg = "grey50")
 
         self.cur_relation = relation
+        self.cur_relation = relation
         # Configure block_frame and add in new buttons
+        self.separate_page(relation, block_IDs)
+        self.cur_page = 0
+        self.config_block_frame(relation, self.pages[self.cur_page])
+        #self.config_page_frame(relation, block_IDs)
         self.separate_page(relation, block_IDs)
         self.cur_page = 0
         self.config_block_frame(relation, self.pages[self.cur_page])
@@ -429,7 +480,7 @@ class ProjectWindow(tk.Tk):
     def display_relation(self, relation, ctid):
         self.destroy_block_content_display()
         # Rerieve the schema and result based on relation and ctid
-        schema, result = execute_block_query(None, relation, ctid)
+        schema, result = execute_block_query(self.connection, relation, ctid)
 
         # Adjust Layout
         self.block_content_frame.grid_rowconfigure(0, weight=1)      
@@ -468,6 +519,8 @@ class ProjectWindow(tk.Tk):
 
 
 
+
+
     def paginate(self, block_IDs):
         # Define the size of each sublist
         sublist_size = 1000
@@ -475,6 +528,10 @@ class ProjectWindow(tk.Tk):
         sublists = [block_IDs[i:i + sublist_size] for i in range(0, len(block_IDs), sublist_size)]
         return sublists
 
+    def separate_page(self, relation, block_IDs):
+        self.pages = self.paginate(block_IDs)
+        self.cur_relation = relation
+        self.total_page = len(self.pages)
     def separate_page(self, relation, block_IDs):
         self.pages = self.paginate(block_IDs)
         self.cur_relation = relation
@@ -505,6 +562,9 @@ class ProjectWindow(tk.Tk):
         self.planCanvas.bind("<ButtonPress-1>", self.scroll_start)
         self.planCanvas.bind("<B1-Motion>", self.scroll_move)
         
+        self.infoLabel = tk.Label(inputFrame, justify=tk.LEFT, text="Planning time:\nExecution time:\nBuffer size:")
+        self.infoLabel.pack(anchor=tk.W, pady=(1,50))
+
         queryLabel = tk.Label(inputFrame, text="Query:")
         queryLabel.pack(anchor=tk.W)
 
@@ -541,11 +601,15 @@ class ProjectWindow(tk.Tk):
         self.disk_tab.grid_columnconfigure(0, weight=2)  
         self.disk_tab.grid_columnconfigure(1, weight=8)  
 
+        self.disk_tab.grid_columnconfigure(1, weight=8)  
+
         self.disk_tab.grid_rowconfigure(0, weight=1)      
         self.disk_tab.grid_rowconfigure(1, weight=1)      
 
         # Place relation_frame, block_frame, block_content_frame
         self.relation_frame.grid(row=0, column=0, sticky="nsew")
+        self.block_frame.grid(row=1, column=0, rowspan = 2, sticky="nsew")
+        self.block_content_frame.grid(row=0, column=1, rowspan=2, sticky="nsew")
         self.block_frame.grid(row=1, column=0, rowspan = 2, sticky="nsew")
         self.block_content_frame.grid(row=0, column=1, rowspan=2, sticky="nsew")
 
@@ -580,6 +644,13 @@ class ProjectWindow(tk.Tk):
         self.h_scroll = None
         self.blocks_frame = None
         self.block_frame_label = None
+        self.previous_button = None
+        self.cur_page_label = None
+        self.cur_page = 1
+        self.total_page = 1
+        self.pages = []
+        self.cur_relation = None
+        self.next_button = None
         self.previous_button = None
         self.cur_page_label = None
         self.cur_page = 1

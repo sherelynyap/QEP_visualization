@@ -1,7 +1,6 @@
 import json
 import sys
 import psycopg2
-import sqlparse
 import ast
 import re
 
@@ -14,11 +13,6 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
         password = password
     )
     return connection
-
-# Function to parse SQL statement
-def parse_sql(query):
-    parsed = sqlparse.parse(query)
-    return parsed
 
 # !!!!!!!!!!!!!!!
 # Error handling !!!

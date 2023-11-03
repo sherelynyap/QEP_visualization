@@ -81,11 +81,21 @@ def build_tree(connection, plan, block_id_dict):
             block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Index Scan"):
             ## need to do this? ==> check nl join, only inner
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None))
+            ## parse condition --> AND 1 OR 0
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None))
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Tid Scan"):
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None))
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
     
     ## Annotation here
     root.annotations = annotate_node(plan)
@@ -99,9 +109,9 @@ def build_tree(connection, plan, block_id_dict):
         plan["Node Type"] = plan["Node Type"] + "\n(" + plan["Relation Name"] + ")"
 
     ## Add elements in plan to attributes   
-    for key, val in plan.items():
-        if (key != "Plans"):
-            root.attributes[key] = val
+    #for key, val in plan.items():
+    #    if (key != "Plans"):
+    #        root.attributes[key] = val
     
     ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:

@@ -3,6 +3,7 @@ import sys
 import psycopg2
 import sqlparse
 import ast
+import re
 
 # Function to connect to database
 def connect_database(host = "localhost", database = "postgres", user = "postgres", password = "password"):
@@ -80,22 +81,32 @@ def build_tree(connection, plan, block_id_dict):
         elif (plan["Node Type"] == "Seq Scan"):
             block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Index Scan"):
-            ## need to do this? ==> check nl join, only inner
-            ## parse condition --> AND 1 OR 0
-            try:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Index Cond"] if ("Index Cond" in plan) else None))
-            except:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            if ("Index Cond" in plan):
+                condition = remove_join_condition(connection, table_name, plan["Index Cond"])
+            else:
+                condition = None
+            #try:
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            #except:
+            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
-            try:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["Recheck Cond"] if ("Recheck Cond" in plan) else None))
-            except:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            if ("Recheck Cond" in plan):
+                condition = remove_join_condition(connection, table_name, plan["Recheck Cond"])
+            else:
+                condition = None
+            #try:
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            #except:
+            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
         elif (plan["Node Type"] == "Tid Scan"):
-            try:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, plan["TID Cond"] if ("TID Cond" in plan) else None))
-            except:
-                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            if ("TID Cond" in plan):
+                condition = remove_join_condition(connection, table_name, plan["TID Cond"])
+            else:
+                condition = None
+            #try:
+            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            #except:
+            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
     
     ## Annotation here
     root.annotations = annotate_node(plan)
@@ -120,6 +131,79 @@ def build_tree(connection, plan, block_id_dict):
             root.children.append(child_node)
 
     return root
+
+# Function to remove join conditions given in QEP
+def remove_join_condition(connection, table_name, condition):
+    query = f"SELECT * FROM {table_name} LIMIT 0"
+
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        schema = [desc[0] for desc in cursor.description]
+        schema = set(schema)
+
+    innermost_content = extract_innermost_parentheses(condition, schema)
+
+    for matched_condition in innermost_content:
+        condition = condition.replace(matched_condition, "TRUE")
+
+    return condition
+
+# Function to extract conditions given in QEP
+def extract_innermost_parentheses(text, schema):
+    pattern = r'\(([^()]+)\)'
+
+    innermost_matches = []
+    return_set = set()
+
+    def extract_innermost(match):
+        inner_text = match.group(1)
+        inner_matches = re.findall(pattern, inner_text)
+        
+        if inner_matches:
+            innermost_matches.extend(extract_innermost(match) for match in inner_matches)
+        else:
+            innermost_matches.append(inner_text)
+
+    matches = re.finditer(pattern, text)
+    for match in matches:
+        extract_innermost(match)
+    
+    # already ignored empty tuples
+    for innermost_match in innermost_matches:
+        ## check false positive - string
+        if (innermost_match[0] == "'" or innermost_match[-1] == "'"):
+            continue
+            
+        ## check false positive - false match
+        if (innermost_match[0] == " " or innermost_match[-1] == " "):
+            continue
+        
+        LHS = ""
+        RHS = ""
+        
+        i = 0
+        while (i < len(innermost_match) and innermost_match[i] != " "):
+            LHS += innermost_match[i]
+            i += 1
+            
+        j = len(innermost_match) - 1
+        while (j >= 0 and innermost_match[j] != " "):
+            RHS = innermost_match[j] + RHS
+            j -= 1
+        
+        # in case something went wrong
+        if (len(LHS) + len(RHS) > len(innermost_match)):
+            continue
+
+        # lhs must in table
+        if (LHS not in schema):
+            continue
+        
+        ## rhs must not in table, check false positive when RHS is numbers or RHS start with '
+        if (RHS not in schema and not RHS.isnumeric() and RHS[0] != "'"):
+            return_set.add(innermost_match)
+
+    return return_set
 
 # Function to annotate node
 def annotate_node(plan):

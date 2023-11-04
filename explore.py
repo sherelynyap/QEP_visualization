@@ -205,44 +205,44 @@ def annotate_node(plan):
 
     ## Explanation for node type
     if (plan["Node Type"] in NODE_EXPLANATION):
-        annotations += NODE_EXPLANATION[plan["Node Type"]] + "\n"
+        annotations += NODE_EXPLANATION[plan["Node Type"]] + "\n\n"
     else:
-        annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n"
+        annotations += "Performs \"" + plan["Node Type"] + "\"operation .\n\n"
  
     ## Explanation for join type
     if ("Join Type" in plan):
         annotations += "{} join is performed.".format(plan["Join Type"])
         ## Explanation for join condition
         if ("Hash Cond" in plan):
-            annotations += " Hash condition is {}.\n".format(plan["Hash Cond"])
+            annotations += " Hash condition is {}.\n\n".format(plan["Hash Cond"])
         elif ("Merge Cond" in plan):
-            annotations += " Merge condition is {}.\n".format(plan["Merge Cond"])
+            annotations += " Merge condition is {}.\n\n".format(plan["Merge Cond"])
         else:
-            annotations += "\n"
+            annotations += "\n\n"
 
     ## Explanation for est cost
-    annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n"\
+    annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n\n"\
         .format(plan["Startup Cost"], plan["Total Cost"])
     
     ## Explanation for actual time
-    annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n"\
+    annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n\n"\
         .format(plan["Actual Startup Time"], plan["Actual Total Time"])
 
     ## Explanation for buffer read
     annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
         .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])
-    annotations += " {} from shared blocks, {} from local blocks, and {} from temp blocks.\n"\
+    annotations += " {} from shared blocks, {} from local blocks, and {} from temp blocks.\n\n"\
         .format(plan["Shared Read Blocks"], plan["Local Read Blocks"], plan["Temp Read Blocks"])
     
     ## Explanation for buffer hit
     annotations += "Total {} block accesses are saved through buffer cache hit."\
         .format(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])
-    annotations += " {} from shared blocks, {} from local blocks.\n"\
+    annotations += " {} from shared blocks, {} from local blocks.\n\n"\
         .format(plan["Shared Hit Blocks"], plan["Local Hit Blocks"])
     
     ## Explanation for proportion of hit to read blocks
     if ((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) != 0):
-        annotations += "The proportion of hit to read for shared and local blocks is {:.2f}%, indicating the buffer cache performance.\n"\
+        annotations += "The proportion of hit to read for shared and local blocks is {:.2f}%, indicating the buffer cache performance.\n\n"\
             .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) * 100)
 
     ## Explanation for rows returned, errors and how many removed by filter
@@ -254,9 +254,9 @@ def annotate_node(plan):
         annotations += " The error of estimation is {:.2f}%.".format(error * 100)
 
     if ("Rows Removed by Filter" in plan):
-        annotations += " {} rows (per-loop) are removed by filtering. \n".format(plan["Rows Removed by Filter"])
+        annotations += " {} rows (per-loop) are removed by filtering. \n\n".format(plan["Rows Removed by Filter"])
     else:
-        annotations += "\n"
+        annotations += "\n\n"
                 
     return annotations
 

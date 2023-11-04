@@ -114,9 +114,9 @@ def build_tree(connection, plan, block_id_dict):
         plan["Node Type"] = plan["Node Type"] + "\n(" + plan["Relation Name"] + ")"
 
     ## Add elements in plan to attributes   
-    #for key, val in plan.items():
-    #    if (key != "Plans"):
-    #        root.attributes[key] = val
+    for key, val in plan.items():
+        if (key != "Plans"):
+            root.attributes[key] = val
     
     ## If not leaf node, recursively call the function to build the tree
     if "Plans" in plan:
@@ -248,7 +248,7 @@ def annotate_node(plan):
 
     ## Explanation for rows returned, errors and how many removed by filter
     annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\
-        .format(plan["Plan Rows"], plan["Actual Rows"], error)
+        .format(plan["Plan Rows"], plan["Actual Rows"])
     
     if (plan["Plan Rows"] != 0):
         error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
@@ -265,9 +265,9 @@ def annotate_node(plan):
 ## Return the sorted list of block id
 def retrieve_block_id(connection, table_name, condition = None):
     if (condition):
-        query = f"SELECT ctid, * FROM {table_name} WHERE {condition}"
+        query = f"SELECT DISTINCT (ctid::text::point)[0] FROM {table_name} WHERE {condition}"
     else:
-        query = f"SELECT ctid, * FROM {table_name}"
+        query = f"SELECT DISTINCT (ctid::text::point)[0] FROM {table_name}"
 
     with connection.cursor() as cursor:
         cursor.execute(query)
@@ -275,8 +275,7 @@ def retrieve_block_id(connection, table_name, condition = None):
 
     block_id_set = set()
     for tuple in result:
-        ctid = ast.literal_eval(tuple[0])
-        block_id = ctid[0]
+        block_id = int(tuple[0])
         block_id_set.add(block_id)
 
     return block_id_set
@@ -315,4 +314,5 @@ NODE_EXPLANATION = {
     'Gather Merge': 'Combines the output of child nodes, which are executed by parallel workers. Preserves sort order.',
     'Append': 'Combine the results of the child operations.',
     'Materialize': 'Stores the result of the child operation in memory, to allow fast, repeated access to it by parent operations.',
+    'Memoize': 'Memoize operations cache the results of lookups, avoiding the need to do them again.'
 }

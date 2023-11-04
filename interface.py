@@ -315,6 +315,7 @@ class ProjectWindow(tk.Tk):
         for block in block_IDs:
             self.add_block_button(relation, block)
         self.block_canvas.configure(scrollregion=self.block_canvas.bbox("all"))
+        self.block_canvas.bind("<MouseWheel>", self.on_mousewheel)
 
         # Create buttons (Previous and Next)
         self.previous_button = tk.Button(self.block_frame, text="<", bg = "grey50")
@@ -424,6 +425,8 @@ class ProjectWindow(tk.Tk):
         self.config_block_frame(relation, self.pages[self.cur_page])
         #self.config_page_frame(relation, block_IDs)
         button.configure(bg='#444444')
+    def on_mousewheel(self, event):
+        event.widget.yview_scroll(-1 * (event.delta // 120), "units")
 
     def on_configure_relation_canvas(self, event):
         # Adjust scrollbar for relation_canvas
@@ -465,6 +468,7 @@ class ProjectWindow(tk.Tk):
         scrollbar.grid(row=1, column=1, columnspan = 1, sticky="nsew")
         self.relation_canvas.config(yscrollcommand=scrollbar.set)
         self.relation_canvas.bind('<Configure>', self.on_configure_relation_canvas)
+        self.relation_canvas.bind("<MouseWheel>", self.on_mousewheel)
 
         # Create relation_canvas_inner_frame to hold dynamic buttons
         self.relation_canvas_inner_frame = tk.Frame(self.relation_canvas)
@@ -475,6 +479,7 @@ class ProjectWindow(tk.Tk):
         for relation in block_id_per_table:
             self.add_relation_button(relation, block_id_per_table[relation])
         self.relation_canvas.configure(scrollregion=self.relation_canvas.bbox("all"))
+        
 
 
     def display_relation(self, relation, ctid):

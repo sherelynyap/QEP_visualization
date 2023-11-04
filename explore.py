@@ -212,14 +212,13 @@ def annotate_node(plan):
     ## Explanation for join type
     if ("Join Type" in plan):
         annotations += "{} join is performed.".format(plan["Join Type"])
-
-    ## Explanation for join condition
-    if ("Hash Cond" in plan):
-        annotations += " Hash condition is {}.\n".format(plan["Hash Cond"])
-    elif ("Merge Cond" in plan):
-        annotations += " Merge condition is {}.\n".format(plan["Merge Cond"])
-    else:
-        annotations += "\n"
+        ## Explanation for join condition
+        if ("Hash Cond" in plan):
+            annotations += " Hash condition is {}.\n".format(plan["Hash Cond"])
+        elif ("Merge Cond" in plan):
+            annotations += " Merge condition is {}.\n".format(plan["Merge Cond"])
+        else:
+            annotations += "\n"
 
     ## Explanation for est cost
     annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n"\

@@ -242,9 +242,9 @@ def annotate_node(plan):
         .format(plan["Shared Hit Blocks"], plan["Local Hit Blocks"])
     
     ## Explanation for proportion of hit to read blocks
-    if ((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]) != 0):
+    if ((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) != 0):
         annotations += "The proportion of hit to read for shared and local blocks is {:.2f}%, indicating the buffer cache performance.\n"\
-            .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Shared Hit Blocks"]))
+            .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) * 100)
 
     ## Explanation for rows returned, errors and how many removed by filter
     annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\
@@ -252,7 +252,7 @@ def annotate_node(plan):
     
     if (plan["Plan Rows"] != 0):
         error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
-        annotations += " The error of estimation is {:.2f}%.".format(error)
+        annotations += " The error of estimation is {:.2f}%.".format(error * 100)
 
     if ("Rows Removed by Filter" in plan):
         annotations += " {} rows (per-loop) are removed by filtering. \n".format(plan["Rows Removed by Filter"])

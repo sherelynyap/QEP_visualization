@@ -96,7 +96,7 @@ class ProjectWindow(tk.Tk):
     def open_popup(self, text: str):
         top = tk.Toplevel(self)
         top.title("Annotation")
-        lbl = tk.Label(top, text=text, font=('Arial', 12, ''), wraplength=300)
+        lbl = tk.Label(top, text=text, font=('Arial', 12, ''), wraplength=400, borderwidth=10, justify=tk.LEFT)
         lbl.pack()
         btn = tk.Button(top, text="Close", command=top.destroy)
         btn.pack()

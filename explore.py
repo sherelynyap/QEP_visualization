@@ -70,37 +70,46 @@ def build_tree(connection, plan, block_id_dict):
         if (table_name not in block_id_dict):
             block_id_dict[table_name] = set()
 
+        ## Index Only Scan
         if (plan["Node Type"] == "Index Only Scan"):
             pass
+
+        ## Sequential Scan
         elif (plan["Node Type"] == "Seq Scan"):
             block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+
+        ## Index Scan
         elif (plan["Node Type"] == "Index Scan"):
             if ("Index Cond" in plan):
                 condition = remove_join_condition(connection, table_name, plan["Index Cond"])
             else:
                 condition = None
-            #try:
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
-            #except:
-            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+
+        ## Bitmap Heap Scan
         elif (plan["Node Type"] == "Bitmap Heap Scan"):
             if ("Recheck Cond" in plan):
                 condition = remove_join_condition(connection, table_name, plan["Recheck Cond"])
             else:
                 condition = None
-            #try:
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
-            #except:
-            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+
+        ## Tid Scan
         elif (plan["Node Type"] == "Tid Scan"):
             if ("TID Cond" in plan):
                 condition = remove_join_condition(connection, table_name, plan["TID Cond"])
             else:
                 condition = None
-            #try:
-            block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
-            #except:
-            #    block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
+            try:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name, condition))
+            except:
+                block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
     
     ## Annotation here
     root.annotations = annotate_node(plan)
@@ -230,7 +239,7 @@ def annotate_node(plan):
 
     ## Explanation for blks here
     annotations += "In PostgreSQL, shared blocks contain regular data; local blocks contain temporary data; temporary blocks contain short-term working data.\n\n"
-    
+
     ## Explanation for buffer read
     annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
         .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])

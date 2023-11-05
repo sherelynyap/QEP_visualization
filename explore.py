@@ -228,6 +228,9 @@ def annotate_node(plan):
     annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n\n"\
         .format(plan["Actual Startup Time"], plan["Actual Total Time"])
 
+    ## Explanation for blks here
+    annotations += "In PostgreSQL, shared blocks contain regular data; local blocks contain temporary data; temporary blocks contain short-term working data.\n\n"
+    
     ## Explanation for buffer read
     annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
         .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])

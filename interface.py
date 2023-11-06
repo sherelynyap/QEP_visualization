@@ -241,7 +241,8 @@ class ProjectWindow(tk.Tk):
         
         ## REMEMBER TO ADD INTO CODE IN GITHUB
         for b in self.block_buttons:
-            b.configure(bg = "grey50")
+            if(b.cget("state") == "normal"):
+                b.configure(bg = "grey50")
         #print("click_block_button " + str(block))
         button.configure(bg='#444444')
 
@@ -267,7 +268,7 @@ class ProjectWindow(tk.Tk):
         if(block in self.accessed_BlockIDs ):
             block_button.config(state="normal")
         else:
-            block_button.config(state="disabled")
+            block_button.config(state="disabled", bg = "lightblue")
 
 
     def on_mousewheel(self, event):
@@ -284,7 +285,7 @@ class ProjectWindow(tk.Tk):
         self.block_frame.grid_columnconfigure(2, weight=1)    
         
         # Block_frame_label on block_frame
-        self.block_frame_label = tk.Label(self.block_frame, text='Block Options', wraplength=90,  borderwidth=2, relief="groove", bg = "yellow")
+        self.block_frame_label = tk.Label(self.block_frame, text='Block Options', wraplength=90,  borderwidth=2, relief="groove")
         self.block_frame_label.grid(row=0, column=0, sticky="nsew", padx=0, pady=0, columnspan=3)
 
         # Create block_canvas to hold scrollbar and dynamic buttons
@@ -315,7 +316,7 @@ class ProjectWindow(tk.Tk):
         self.previous_button.grid(row=2, column=0, sticky = "nsew", columnspan=1)
 
         # Create Label for displaying current page
-        self.cur_page_label = tk.Label(self.block_frame, text= str(self.cur_page)+"/"+str(self.total_page), bg = "yellow", borderwidth=2, relief="groove")
+        self.cur_page_label = tk.Label(self.block_frame, text= str(self.cur_page)+"/"+str(self.total_page), borderwidth=2, relief="groove")
         self.cur_page_label.grid(row=2, column=1, sticky="nsew", columnspan=1)
 
         # Create buttons (Previous and Next)
@@ -399,7 +400,7 @@ class ProjectWindow(tk.Tk):
         
 
         # Place relation_frame_label
-        relation_frame_label = tk.Label(self.relation_frame, text='Relation Options', wraplength=90, borderwidth=2, relief="groove", bg = "orange")
+        relation_frame_label = tk.Label(self.relation_frame, text='Relation Options', wraplength=90, borderwidth=2, relief="groove")
         relation_frame_label.grid(row=0, column=0, sticky="nsew", padx=0, pady=0, columnspan=2)
 
         # Create relation_canvas for relation_buttons
@@ -434,11 +435,11 @@ class ProjectWindow(tk.Tk):
         self.block_content_frame.grid_rowconfigure(1, weight=10)
 
         # Set the label for block_frame
-        self.display_block_label = tk.Label(self.block_content_frame, text="Display Content of Block " + str(ctid) + " Accessed for Relation " + relation, borderwidth=2, relief="groove", bg = "red")
+        self.display_block_label = tk.Label(self.block_content_frame, text="Display Content of Block " + str(ctid) + " Accessed for Relation " + relation, borderwidth=2, relief="groove")
         self.display_block_label.grid(row=0, column=0, sticky="nsew", columnspan=2)
 
         # Rerieve the schema and result based on relation and ctid
-        schema, result = execute_block_query(self.connection, relation, ctid) 
+        schema, result = execute_block_query(None, relation, ctid) 
 
         # Create tree to display the table
         self.table = ttk.Treeview(self.block_content_frame, columns=schema, show="headings")

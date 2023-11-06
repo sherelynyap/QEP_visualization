@@ -47,8 +47,17 @@ def get_qep_info(connection, query):
         cursor.execute(f"SHOW block_size")
         buffer_size = cursor.fetchall()[0][0]
 
-    for key in block_id_per_table:
-        block_id_per_table[key] = sorted(block_id_per_table[key])
+    for table in block_id_per_table:
+        temp_list = []
+
+        # Append the full list of block ids to the list
+        temp_list.append(sorted(retrieve_block_id(connection, table)))
+
+        # Append the filtered list of block ids to the list
+        temp_list.append(sorted(block_id_per_table[table]))
+
+        # Update the dictionary
+        block_id_per_table[table] = temp_list
 
     result_dict['root'] = root
     result_dict['planning_time'] = planning_time

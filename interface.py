@@ -253,7 +253,7 @@ class ProjectWindow(tk.Tk):
 
     def add_block_button(self,relation, block):
         # Add block_button to create dynamic buttons into block_canvas
-        block_button = tk.Button(self.block_canvas_inner_frame, text=block, bg = "grey50",  padx=100, pady=5)
+        block_button = tk.Button(self.block_canvas_inner_frame, text=block, bg = "grey50",  padx=0, pady=5)
         block_button.configure(command = lambda btn = block_button:self.click_block_button(relation, block, btn))
 
         block_button.pack(fill = "both")
@@ -598,7 +598,7 @@ class ProjectWindow(tk.Tk):
         self.block_scrollbar = None
         
         self.block_id_per_table = {}
-        self.connection = connect_database(database="TPC-H",password="since2001")
+        self.connection = connect_database(database="postgres",password="09211200242")
         self.create_QEP_tab()
         self.create_disk_tab(self.block_id_per_table)
 

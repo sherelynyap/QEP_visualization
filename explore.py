@@ -1,7 +1,5 @@
-import json
-import sys
+from collections import defaultdict 
 import psycopg2
-import ast
 import re
 
 # Function to connect to database
@@ -120,8 +118,17 @@ def build_tree(connection, plan, block_id_dict):
             except:
                 block_id_dict[table_name].update(retrieve_block_id(connection, table_name))
     
+    ## If not leaf node, recursively call the function to build the tree
+    children_info_dict = defaultdict(int)
+
+    if "Plans" in plan:
+        for child_plan in plan["Plans"]:
+            child_node = build_tree(connection, child_plan, block_id_dict)
+            get_children_info(child_plan, children_info_dict)
+            root.children.append(child_node)
+
     ## Annotation here
-    root.annotations = annotate_node(plan)
+    root.annotations = annotate_node(plan, children_info_dict)
 
     ## If parallel aware, append Parallel to the front of Node Type
     if ("Parallel Aware" in plan and plan["Parallel Aware"]):
@@ -135,12 +142,6 @@ def build_tree(connection, plan, block_id_dict):
     for key, val in plan.items():
         if (key != "Plans"):
             root.attributes[key] = val
-    
-    ## If not leaf node, recursively call the function to build the tree
-    if "Plans" in plan:
-        for child_plan in plan["Plans"]:
-            child_node = build_tree(connection, child_plan, block_id_dict)
-            root.children.append(child_node)
 
     return root
 
@@ -217,8 +218,19 @@ def extract_innermost_parentheses(text, schema):
 
     return return_set
 
+# Function to get children info
+def get_children_info(child_plan, children_info_dict):
+    CANDIDATES = {"Startup Cost", "Total Cost", "Actual Startup Time", "Actual Total Time", "Shared Hit Blocks", 
+                  "Shared Read Blocks", "Shared Dirtied Blocks", "Shared Written Blocks", "Local Hit Blocks", 
+                  "Local Read Blocks", "Local Dirtied Blocks", "Local Written Blocks", "Temp Read Blocks", 
+                  "Temp Written Blocks"}
+    
+    for candidate in CANDIDATES:
+        if (candidate in child_plan):
+            children_info_dict[candidate] += child_plan[candidate]
+
 # Function to annotate node
-def annotate_node(plan):
+def annotate_node(plan, children_info_dict):
     annotations = ""
 
     ## Explanation for node type
@@ -239,32 +251,35 @@ def annotate_node(plan):
             annotations += "\n\n"
 
     ## Explanation for est cost
-    annotations += "The startup cost for this node is estimated to be {} while the total cost (including cost from children nodes) is estimated to be {}.\n\n"\
-        .format(plan["Startup Cost"], plan["Total Cost"])
+    annotations += "The startup cost for this node is estimated to be {:.1f} while the total cost is estimated to be {:.1f}. The total cost until this node is {:.1f}\n\n"\
+        .format(plan["Startup Cost"] - children_info_dict["Startup Cost"], plan["Total Cost"] - children_info_dict["Total Cost"], plan["Total Cost"])
     
     ## Explanation for actual time
-    annotations += "In the actual run, this node took {} ms to start up and took {} ms to finish (including time calculated in children nodes).\n\n"\
-        .format(plan["Actual Startup Time"], plan["Actual Total Time"])
+    annotations += "In the actual run, this node took {:.3f} ms to start up and took {:.3f} ms to finish.\n\n"\
+        .format(plan["Actual Startup Time"] - children_info_dict["Actual Startup Time"], plan["Actual Total Time"] - children_info_dict["Actual Total Time"])
 
     ## Explanation for blks here
     annotations += "In PostgreSQL, shared blocks contain regular data; local blocks contain temporary data; temporary blocks contain short-term working data.\n\n"
 
     ## Explanation for buffer read
-    annotations += "In the actual run, total {} blocks are read (including values for child operations)."\
-        .format(plan["Shared Read Blocks"] + plan["Local Read Blocks"] + plan["Temp Read Blocks"])
-    annotations += " {} from shared blocks, {} from local blocks, and {} from temp blocks.\n\n"\
-        .format(plan["Shared Read Blocks"], plan["Local Read Blocks"], plan["Temp Read Blocks"])
+    shared_read_blocks = plan["Shared Read Blocks"] - children_info_dict["Shared Read Blocks"]
+    local_read_blocks = plan["Local Read Blocks"] - children_info_dict["Local Read Blocks"]
+    temp_read_blocks = plan["Temp Read Blocks"] - children_info_dict["Temp Read Blocks"]
+
+    annotations += "In the actual run, total {} blocks (shared: {}, local: {}, temp: {}) are read.\n\n"\
+        .format(shared_read_blocks + local_read_blocks + temp_read_blocks, shared_read_blocks, local_read_blocks, temp_read_blocks)
     
     ## Explanation for buffer hit
-    annotations += "Total {} block accesses are saved through buffer cache hit."\
-        .format(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])
-    annotations += " {} from shared blocks, {} from local blocks.\n\n"\
-        .format(plan["Shared Hit Blocks"], plan["Local Hit Blocks"])
+    shared_hit_blocks = plan["Shared Hit Blocks"] - children_info_dict["Shared Hit Blocks"]
+    local_hit_blocks = plan["Local Hit Blocks"] - children_info_dict["Local Hit Blocks"]
+
+    annotations += "Total {} block accesses (shared: {}, local: {}) are saved through buffer cache hit.\n\n"\
+        .format(shared_hit_blocks + local_hit_blocks, shared_hit_blocks, local_hit_blocks)
     
     ## Explanation for proportion of hit to read blocks
-    if ((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) != 0):
+    if ((shared_hit_blocks + local_hit_blocks + shared_read_blocks + local_read_blocks) != 0):
         annotations += "The proportion of hit to read for shared and local blocks is {:.2f}%, indicating the buffer cache performance.\n\n"\
-            .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) * 100)
+            .format((shared_hit_blocks + local_hit_blocks)/(shared_hit_blocks + local_hit_blocks + shared_read_blocks + local_read_blocks) * 100)
 
     ## Explanation for rows returned, errors and how many removed by filter
     annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\

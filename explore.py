@@ -267,7 +267,7 @@ def annotate_node(plan):
             .format((plan["Shared Hit Blocks"] + plan["Local Hit Blocks"])/(plan["Shared Hit Blocks"] + plan["Local Hit Blocks"] + plan["Shared Read Blocks"] + plan["Local Read Blocks"]) * 100)
 
     ## Explanation for rows returned, errors and how many removed by filter
-    annotations += "The rows to be produced is estimated to be {}, while in the actual run {} rows are produced."\
+    annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\
         .format(plan["Plan Rows"], plan["Actual Rows"])
     
     if (plan["Plan Rows"] != 0):

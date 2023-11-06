@@ -598,7 +598,7 @@ class ProjectWindow(tk.Tk):
         self.block_scrollbar = None
         
         self.block_id_per_table = {}
-        self.connection = connect_database(database="postgres",password="09211200242")
+        self.connection = connect_database(database="TPC-H",password="since2001")
         self.create_QEP_tab()
         self.create_disk_tab(self.block_id_per_table)
 

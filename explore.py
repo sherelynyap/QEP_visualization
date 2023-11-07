@@ -213,7 +213,7 @@ def extract_innermost_parentheses(text, schema):
             continue
         
         ## rhs must not in table, check false positive when RHS is numbers or RHS start with '
-        if (RHS not in schema and not RHS.isnumeric() and RHS[0] != "'"):
+        if (RHS not in schema and not RHS[0].isnumeric() and RHS[0] != "'"):
             return_set.add(innermost_match)
 
     return return_set

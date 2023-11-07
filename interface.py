@@ -439,7 +439,7 @@ class ProjectWindow(tk.Tk):
         self.display_block_label.grid(row=0, column=0, sticky="nsew", columnspan=2)
 
         # Rerieve the schema and result based on relation and ctid
-        schema, result = execute_block_query(None, relation, ctid) 
+        schema, result = execute_block_query(self.connection, relation, ctid) 
 
         # Create tree to display the table
         self.table = ttk.Treeview(self.block_content_frame, columns=schema, show="headings")
@@ -481,7 +481,91 @@ class ProjectWindow(tk.Tk):
         self.pages = self.paginate(block_IDs)
         self.cur_relation = relation
         self.total_page = len(self.pages)
+
+    def processLogin(self):
+        # Checking if entry labels are empty in case user did not enter
+        typesOfEntry = []
+        typesOfEntry.extend([self.userEntry, self.pwdEntry, self.dbNameEntry])
+        isEmpty = False
+        for i in typesOfEntry:
+            if len(i.get()) == 0:
+                isEmpty = True
+        if isEmpty:
+            messagebox.showerror(
+                title="Warning", message="Please fill in all fields")
+            return
+
+        # Establishing connection
+        try:
+            print(f"DATABASE: {self.dbNameEntry.get()}")
+            print(f"USERNAME: {self.userEntry.get()}")
+            print(f"PASSWORD: {self.pwdEntry.get()}")
+            self.connection = connect_database(user=self.userEntry.get(), database=self.dbNameEntry.get(), password=self.pwdEntry.get())
+        except Exception as e:
+            print(f"Error: {type(e).__name__}, Message: {str(e)}")
+            messagebox.showerror(
+                title=f"Error: {type(e).__name__}", message=str(e))
+            return
         
+        # Destroy login page and create multi-tab notebook
+        self.login_page.destroy()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        screen_width//=2
+        screen_height//=2
+        self.geometry(f"{screen_width}x{screen_height}")
+
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True)
+        self.create_QEP_tab()
+        self.create_disk_tab(self.block_id_per_table)
+
+    def createLoginDetails(self):
+        # Labelling frames
+        # ipFrame = tk.Frame(self.login_page)
+        # ipFrame.pack(anchor=tk.W)
+        # portFrame = tk.Frame(self.login_page)
+        # portFrame.pack(anchor=tk.W)
+        dbNameFrame = tk.Frame(self.login_page)
+        dbNameFrame.pack()
+        userFrame = tk.Frame(self.login_page)
+        userFrame.pack()
+        pwdFrame = tk.Frame(self.login_page)
+        pwdFrame.pack()
+
+        # Auto filling certain labels
+        # ipLabel = tk.Label(ipFrame, text="IP address: ")
+        # ipLabel.pack(side=tk.LEFT)
+        # self.ipEntry = tk.Entry(ipFrame)
+        # self.ipEntry.insert(0, "127.0.0.1")
+        # self.ipEntry.pack(side=tk.RIGHT)
+
+        # portLabel = tk.Label(portFrame, text="Port: ")
+        # portLabel.pack(side=tk.LEFT)
+        # self.portEntry = tk.Entry(portFrame)
+        # self.portEntry.insert(0, "5432")
+        # self.portEntry.pack(side=tk.RIGHT)
+
+        userLabel = tk.Label(userFrame, text="Username: ")
+        userLabel.pack(side=tk.LEFT)
+        self.userEntry = tk.Entry(userFrame)
+        self.userEntry.insert(0, "postgres")
+        self.userEntry.pack(side=tk.RIGHT)
+
+        pwdLabel = tk.Label(pwdFrame, text="Password: ")
+        pwdLabel.pack(side=tk.LEFT)
+        self.pwdEntry = tk.Entry(pwdFrame)
+        self.pwdEntry.pack(side=tk.RIGHT)
+
+        dbNameLabel = tk.Label(dbNameFrame, text="Database: ")
+        dbNameLabel.pack(side=tk.LEFT)
+        self.dbNameEntry = tk.Entry(dbNameFrame)
+        self.dbNameEntry.insert(0, "TPC-H")
+        self.dbNameEntry.pack(side=tk.RIGHT)
+
+        loginBtn = tk.Button(self.login_page, text="LOGIN", command=self.processLogin)
+        loginBtn.pack()
+
     def create_QEP_tab(self):
         self.QEP_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.QEP_tab, text="QEP_tab")
@@ -563,17 +647,6 @@ class ProjectWindow(tk.Tk):
         self.scale = 0
         self.dictExtraToID = {}
         self.textBoxes = []
-
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        screen_width//=2
-        screen_height//=2
-        self.geometry(f"{screen_width}x{screen_height}")
-        self.title("CZ4031 Database Project 2")
-
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True)
-        
         # Add these to ProjectWindow() attributes
         self.disk_tab = None
         self.relation_frame = None
@@ -597,11 +670,15 @@ class ProjectWindow(tk.Tk):
         self.block_scrollbar = None
         self.block_canvas = None
         self.block_scrollbar = None
-        
         self.block_id_per_table = {}
-        self.connection = connect_database(database="TPC-H",password="since2001")
-        self.create_QEP_tab()
-        self.create_disk_tab(self.block_id_per_table)
+
+        self.title("CZ4031 Database Project 2")
+        self.geometry(f"300x200")
+        self.login_page = tk.Frame(self)
+        self.login_page.place(anchor="c", relx=.5, rely=.5)
+        self.createLoginDetails()
+        
+        
 
 # Create an instance of your custom window class and start the Tkinter mainloop
 if __name__ == "__main__":

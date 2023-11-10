@@ -1,4 +1,4 @@
-from collections import defaultdict 
+from collections import defaultdict, deque
 import psycopg2
 import re
 
@@ -37,7 +37,12 @@ def get_qep_info(connection, query):
             print(error)
             return "error"
     
+    # Build the tree
     root = build_tree(connection, result['Plan'], block_id_per_table)
+
+    # Prepare the tree for performance visualization
+    refine_tree(root)
+
     planning_time = result['Planning Time']
     execution_time = result['Execution Time']
 
@@ -138,10 +143,9 @@ def build_tree(connection, plan, block_id_dict):
     if ("Relation Name" in plan):
         plan["Node Type"] = plan["Node Type"] + "\n(" + plan["Relation Name"] + ")"
 
-    ## Add elements in plan to attributes   
-    for key, val in plan.items():
-        if (key != "Plans"):
-            root.attributes[key] = val
+    ## Add elements in plan to attributes
+    root.attributes["Node Type"] = plan["Node Type"]
+    root.attributes["Performance Visualization"] = plan["Performance Visualization"]
 
     return root
 
@@ -218,7 +222,7 @@ def extract_innermost_parentheses(text, schema):
 
     return return_set
 
-# Function to get children info
+# Function to get information of children nodes for future substraction when doing annotation
 def get_children_info(child_plan, children_info_dict):
     CANDIDATES = {"Startup Cost", "Total Cost", "Actual Startup Time", "Actual Total Time", "Shared Hit Blocks", 
                   "Shared Read Blocks", "Shared Dirtied Blocks", "Shared Written Blocks", "Local Hit Blocks", 
@@ -229,7 +233,7 @@ def get_children_info(child_plan, children_info_dict):
         if (candidate in child_plan):
             children_info_dict[candidate] += child_plan[candidate]
 
-# Function to annotate node
+# Function to annotate node and compute relevant information for performance visualization
 def annotate_node(plan, children_info_dict):
     annotations = ""
 
@@ -285,6 +289,8 @@ def annotate_node(plan, children_info_dict):
     annotations += "The rows to be produced (per-loop) is estimated to be {}, while in the actual run {} rows (per-loop) are produced."\
         .format(plan["Plan Rows"], plan["Actual Rows"])
     
+    error = 0
+
     if (plan["Plan Rows"] != 0):
         error = abs (plan["Actual Rows"] - plan["Plan Rows"]) / plan["Plan Rows"]
         if (plan["Actual Rows"] - plan["Plan Rows"] > 0):
@@ -296,8 +302,56 @@ def annotate_node(plan, children_info_dict):
         annotations += " {} rows (per-loop) are removed by filtering. \n\n".format(plan["Rows Removed by Filter"])
     else:
         annotations += "\n\n"
-                
+
+    ## Update plan to prepare for subsequent performance visualization
+    est_cost = plan["Total Cost"] - children_info_dict["Total Cost"]
+    read_blocks = shared_read_blocks + local_read_blocks + temp_read_blocks
+    err = error
+
+    plan["Performance Visualization"] = (est_cost, read_blocks, err)
+
     return annotations
+
+# Function to prepare the tree for performance visualization
+def refine_tree(root):
+    max_val = [0,0,0]
+
+    # First run to find max value for: cost, buffer (read), and estimation error (row) respectively
+    queue = deque([root])
+    while (queue):
+        candidate = queue.popleft()
+
+        candidate_val = candidate.attributes["Performance Visualization"]
+        for i, val in enumerate(candidate_val):
+            if (val > max_val[i]):
+                max_val[i] = val
+
+        for child in candidate.children:
+            queue.append(child)
+
+    # Second run to build a list of two tuples, in the format of [(a,b,c), (d,e,f)]
+    # the first element in the list is a tuple of the percentage of cur_val to max_val
+    # the second element in the list is a tuple of the cur_val
+    # the elements in the tuple are arranged in the format of cost, buffer (read) and estimation error (row)
+    queue = deque([root])
+    while (queue):
+        candidate = queue.popleft()
+
+        candidate_val = candidate.attributes["Performance Visualization"]
+
+        percentage_list = []
+        for i in range(len(candidate_val)):
+            if (max_val[i] != 0):
+                percentage_list.append(candidate_val[i] / max_val[i])
+            else:
+                percentage_list.append(0)
+
+        percentage_tuple = tuple(percentage_list)
+
+        candidate.attributes["Performance Visualization"] = [percentage_tuple, candidate_val]
+
+        for child in candidate.children:
+            queue.append(child)
 
 # Get the number of blocks accessed in each scan
 ## Return the sorted list of block id

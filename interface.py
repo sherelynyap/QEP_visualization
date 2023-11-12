@@ -643,7 +643,7 @@ class ProjectWindow(tk.Tk):
         filter_frame = tk.Frame(inputFrame)
         filter_frame.pack()
         for (text, value) in FILTER.items(): 
-            tk.Radiobutton(filter_frame, text=text, variable=self.filter, value=value, command=lambda: self.runQuery(False)).pack(side='left')
+            tk.Radiobutton(filter_frame, text=text, variable=self.filter, value=value, indicatoron=0, background="light grey", command=lambda: self.runQuery(False)).pack(side='left')
 
         queryLabel = tk.Label(inputFrame, text="Query:")
         queryLabel.pack(anchor=tk.W)

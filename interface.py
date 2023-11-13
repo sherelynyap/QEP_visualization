@@ -632,7 +632,7 @@ class ProjectWindow(tk.Tk):
         
         self.infoLabel = tk.Label(inputFrame, justify=tk.LEFT, text="Planning time:\nExecution time:\nBuffer size:")
         self.infoLabel.pack(anchor=tk.W, pady=(1,50))
-
+        
         self.filter = tk.StringVar()
         FILTER = {
                     "OFF" : "OFF", 
@@ -642,6 +642,8 @@ class ProjectWindow(tk.Tk):
                 } 
         filter_frame = tk.Frame(inputFrame)
         filter_frame.pack()
+        qepLabel = tk.Label(filter_frame, text="Performance Visualisation")
+        qepLabel.pack()
         for (text, value) in FILTER.items(): 
             tk.Radiobutton(filter_frame, text=text, variable=self.filter, value=value, indicatoron=0, background="light grey", command=lambda: self.runQuery(False)).pack(side='left')
 

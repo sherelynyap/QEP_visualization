@@ -138,7 +138,7 @@ class ProjectWindow(tk.Tk):
             if filter == "COST":
                 (rect, line) = self.createTextRectangle(curNode.text+f"\ncost: {curNode.cost[1]:.2f}", self.planCanvas, x, y, curNode.cost[0])
             elif filter == "BUFFER":
-                (rect, line) = self.createTextRectangle(curNode.text+f"\nbuffer: {curNode.buffer[1]}", self.planCanvas, x, y, curNode.buffer[0])
+                (rect, line) = self.createTextRectangle(curNode.text+f"\nbuffers read: {curNode.buffer[1]}", self.planCanvas, x, y, curNode.buffer[0])
             elif filter == "ERROR":
                 (rect, line) = self.createTextRectangle(curNode.text+f"\nerror: {curNode.error[1]*100:.2f}%", self.planCanvas, x, y, curNode.error[0])
             else:
@@ -637,7 +637,7 @@ class ProjectWindow(tk.Tk):
         FILTER = {
                     "OFF" : "OFF", 
                     "COST" : "COST", 
-                    "BUFFER" : "BUFFER", 
+                    "BUFFERS READ" : "BUFFER", 
                     "ERROR OF ROW ESTIMATION (%)" : "ERROR"
                 } 
         filter_frame = tk.Frame(inputFrame)

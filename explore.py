@@ -12,10 +12,6 @@ def connect_database(host = "localhost", database = "postgres", user = "postgres
     )
     return connection
 
-# !!!!!!!!!!!!!!!
-# Error handling !!!
-# !!!!!!!!!!!!!!!
-
 # Class representing QEP tree node
 class Node():
     def __init__(self) -> None:

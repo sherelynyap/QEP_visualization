@@ -232,6 +232,7 @@ class ProjectWindow(tk.Tk):
             self.planCanvas.itemconfig(text, font=writingFont)
 
     def destroy_block_content_display(self):
+        # Destroy all components in the block_content_frame
         if(self.display_block_label is not None):
             self.display_block_label.destroy()
             self.display_block_label = None
@@ -252,6 +253,7 @@ class ProjectWindow(tk.Tk):
 
 
     def destroy_block_frame(self):
+        # Destroy all components in the block_frame
         if(self.block_frame_label is not None):
             self.block_frame_label.destroy()
             self.block_frame_label = None
@@ -278,11 +280,10 @@ class ProjectWindow(tk.Tk):
         # Actions to do when block_button is clicked
         self.display_relation(relation, block)
         
-        ## REMEMBER TO ADD INTO CODE IN GITHUB
         for b in self.block_buttons:
             if(b.cget("state") == "normal"):
                 b.configure(bg = "grey50")
-        #print("click_block_button " + str(block))
+        
         button.configure(bg='#444444')
 
     def on_configure_block_canvas(self, event):
@@ -311,6 +312,7 @@ class ProjectWindow(tk.Tk):
 
 
     def on_mousewheel(self, event):
+        # Enable mousewheel for scrollbar control
         event.widget.yview_scroll(-1 * (event.delta // 120), "units")
 
     def config_block_frame(self, relation, block_IDs):
@@ -366,6 +368,7 @@ class ProjectWindow(tk.Tk):
         self.configure_next_previous_buttons()
 
     def configure_next_previous_buttons(self):
+        # Enable and disable "<" and ">" buttons
         self.cur_page_label.configure(text= str(self.cur_page+1)+"/"+str(self.total_page))
         self.destroy_block_content_display()
         if(self.cur_page>=(self.total_page-1)):
@@ -382,11 +385,13 @@ class ProjectWindow(tk.Tk):
             
 
     def click_next_button(self,relation, block, btn):
+        # Action when ">" button is clicked
         self.cur_page+=1
         self.config_block_frame(self.cur_relation, self.pages[self.cur_page])
         self.configure_next_previous_buttons()
         
     def click_previous_button(self,relation, block, btn):
+        # Action when "<" button is clicked
         self.cur_page-=1
         self.config_block_frame(self.cur_relation, self.pages[self.cur_page])
         self.configure_next_previous_buttons()
@@ -466,6 +471,7 @@ class ProjectWindow(tk.Tk):
 
 
     def display_relation(self, relation, ctid):
+        # Display the content and tupples of the disk block accessed
         self.destroy_block_content_display()
         
 

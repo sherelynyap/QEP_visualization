@@ -23,7 +23,6 @@ def countLeafNodes(node: Node):
 def traverseTree(root):
     if not root:
         return
-    
     # for k, v in root.attributes.items():
     #     root.annotations+= f"{k}: {v}\n"
     if root.children:
@@ -33,6 +32,9 @@ class DisplayNode():
     def __init__(self) -> None:
         self.children: list[DisplayNode] = []
         self.text = ""
+        self.cost = None
+        self.buffer = None
+        self.error = None
         self.annotations = ""
         self.depth: int = 0
         self.left_bound: int = 0
@@ -45,6 +47,7 @@ def createDisplayNode(root: Node):
     rootDisplay.left_bound = 0
     rootDisplay.right_bound = maxBound
     rootDisplay.text = root.attributes['Node Type']
+    rootDisplay.cost, rootDisplay.buffer, rootDisplay.error = zip(*root.attributes['Performance Visualization'])  #(est_cost, read_blocks, err)
     rootDisplay.annotations = root.annotations
     nodeQueue: list[Tuple[DisplayNode, Node, Tuple[int, int]]] = []  # tuple of (displayNode parent, node child)
     if (len(root.children) == 1):
@@ -55,6 +58,7 @@ def createDisplayNode(root: Node):
     while (len(nodeQueue) > 0):
         curNode = nodeQueue.pop(0)
         newChild = DisplayNode()
+        newChild.cost, newChild.buffer, newChild.error = zip(*curNode[1].attributes['Performance Visualization'])
         newChild.left_bound = curNode[2][0]
         newChild.right_bound = curNode[2][1]
         newChild.text = curNode[1].attributes['Node Type']
@@ -85,9 +89,22 @@ class ProjectWindow(tk.Tk):
         if (self.dictExtraToID[event.widget.find_closest(x, y)[0]] != ""):
             self.open_popup(self.dictExtraToID[event.widget.find_closest(x, y)[0]])
     
-    def createTextRectangle(self, text: str, canvas: tk.Canvas, x0: int, y0: int):
-        rectangle = canvas.create_rectangle(x0, y0, x0 + 100, y0 + 50, fill="#FFFFFF")
-        textline = canvas.create_text(x0 + 50, y0 + 25, text=text, justify='center')
+    def createTextRectangle(self, text: str, canvas: tk.Canvas, x0: int, y0: int, p):
+        if p is None:
+            rectangle = canvas.create_rectangle(x0, y0, x0 + 100, y0 + 50, fill="#FFFFFF")
+            textline = canvas.create_text(x0 + 50, y0 + 25, text=text, justify='center')
+        else:  
+            if p < 0.1:
+                highlight = "#00FF00" # 0% - 10%: GREEN
+            elif p < 0.3:
+                highlight = "#FFFF00" # 10% - 30%: YELLOW
+            elif p < 0.6:
+                highlight = "#FFA500" # 30% - 60%: ORANGE
+            else:
+                highlight = "#FF0000" # >60%: RED
+            rectangle = canvas.create_rectangle(x0, y0, x0 + 100, y0 + 50, fill="#FFFFFF", outline=highlight)
+            textline = canvas.create_text(x0 + 50, y0 + 25, text=text, justify='center')
+        
         self.textBoxes.append(textline)
         self.planCanvas.tag_bind(rectangle, '<ButtonPress-1>', self.onObjectClick)
         self.planCanvas.tag_bind(textline, '<ButtonPress-1>', self.onObjectClick)
@@ -117,7 +134,15 @@ class ProjectWindow(tk.Tk):
                 drawQueue.append((child, curNode))
             x = (curNode.left_bound * 200 + curNode.right_bound * 200) / 2 - 50
             y = curNode.depth * 100 + 50 - 25
-            (rect, line) = self.createTextRectangle(curNode.text, self.planCanvas, x, y)
+            filter = self.filter.get()
+            if filter == "COST":
+                (rect, line) = self.createTextRectangle(curNode.text+f"\ncost: {curNode.cost[1]:.2f}", self.planCanvas, x, y, curNode.cost[0])
+            elif filter == "BUFFER":
+                (rect, line) = self.createTextRectangle(curNode.text+f"\nbuffer: {curNode.buffer[1]}", self.planCanvas, x, y, curNode.buffer[0])
+            elif filter == "ERROR":
+                (rect, line) = self.createTextRectangle(curNode.text+f"\nerror: {curNode.error[1]*100:.2f}%", self.planCanvas, x, y, curNode.error[0])
+            else:
+                (rect, line) = self.createTextRectangle(curNode.text, self.planCanvas, x, y, None)
             self.dictExtraToID[rect] = curNode.annotations
             self.dictExtraToID[line] = curNode.annotations
             if (curTup[1] != None):
@@ -125,7 +150,7 @@ class ProjectWindow(tk.Tk):
                                             curNode.depth * 100 + 50 - 25,
                                             (curTup[1].left_bound * 200 + curTup[1].right_bound * 200) / 2,
                                             (curNode.depth - 1) * 100 + 50 + 25)
-    def runQuery(self):
+    def runQuery(self, first_run):
         self.planCanvas.delete("all")
         self.pb = ttk.Progressbar(
             self.planCanvas,
@@ -135,8 +160,23 @@ class ProjectWindow(tk.Tk):
         )
         self.pb.place(relx=.5, rely=.5, anchor="c")
         self.pb.start(10)
-        thread = threading.Thread(target=self.processQuery)
-        thread.start()
+        try:
+            thread.join()
+        except NameError:
+            pass
+        if first_run:
+            thread = threading.Thread(target=self.processQuery)
+            thread.start()
+        else:
+            # thread.join()
+            thread = threading.Thread(target=self.config_tree)
+            thread.start()
+
+    def config_tree(self):
+        print(self.filter.get())
+        self.pb.place_forget()
+        if self.root is not None:
+            self.drawCanvasPlan(self.root)
 
     def processQuery(self):
         # query = "Select * FROM public.lineitem join public.supplier on public.lineitem.l_suppkey = public.supplier.s_suppkey WHERE public.supplier.s_nationkey = 3"
@@ -154,17 +194,16 @@ class ProjectWindow(tk.Tk):
                 title="Warning", message="Please check your sql statement entered.")
             return
         
-        root = result_dict['root']
+        self.root = result_dict['root']
         self.infoLabel.config(text = f"Planning time:\t{result_dict['planning_time']} ms\nExecution time:\t{result_dict['execution_time']} ms\nBuffer size:\t{result_dict['buffer_size']}")
         '''# block_id_per_table
         with open('result_dict.json', 'w') as output_file:
             json.dump(result_dict['block_id_per_table'], output_file, default = lambda x: x.__dict__ ,ensure_ascii = False, indent = 4)'''
         self.create_disk_tab(result_dict['block_id_per_table'])
 
-        traverseTree(root)
         self.pb.place_forget()
         # Draw optimal query tree
-        self.drawCanvasPlan(root)
+        self.drawCanvasPlan(self.root)
 
     def centreCanvas(self):
         self.planCanvas.scale("all", 0, 0, pow(0.8, self.scale), pow(0.8, self.scale))
@@ -593,6 +632,20 @@ class ProjectWindow(tk.Tk):
         
         self.infoLabel = tk.Label(inputFrame, justify=tk.LEFT, text="Planning time:\nExecution time:\nBuffer size:")
         self.infoLabel.pack(anchor=tk.W, pady=(1,50))
+        
+        self.filter = tk.StringVar()
+        FILTER = {
+                    "OFF" : "OFF", 
+                    "COST" : "COST", 
+                    "BUFFER" : "BUFFER", 
+                    "ERROR OF ROW ESTIMATION (%)" : "ERROR"
+                } 
+        filter_frame = tk.Frame(inputFrame)
+        filter_frame.pack()
+        qepLabel = tk.Label(filter_frame, text="Performance Visualisation")
+        qepLabel.pack()
+        for (text, value) in FILTER.items(): 
+            tk.Radiobutton(filter_frame, text=text, variable=self.filter, value=value, indicatoron=0, background="light grey", command=lambda: self.runQuery(False)).pack(side='left')
 
         queryLabel = tk.Label(inputFrame, text="Query:")
         queryLabel.pack(anchor=tk.W)
@@ -600,7 +653,7 @@ class ProjectWindow(tk.Tk):
         self.queryTextBox = tk.Text(inputFrame, height=10, width=30)
         self.queryTextBox.pack(expand=True, fill="both")
 
-        processBtn = tk.Button(inputFrame, text="Process query", command=self.runQuery)
+        processBtn = tk.Button(inputFrame, text="Process query", command=lambda: self.runQuery(True))
         processBtn.pack()
 
         self.annoStr = tk.StringVar()
@@ -670,6 +723,7 @@ class ProjectWindow(tk.Tk):
         self.block_scrollbar = None
         self.block_canvas = None
         self.block_scrollbar = None
+        self.root = None
         self.block_id_per_table = {}
 
         self.title("CZ4031 Database Project 2")
